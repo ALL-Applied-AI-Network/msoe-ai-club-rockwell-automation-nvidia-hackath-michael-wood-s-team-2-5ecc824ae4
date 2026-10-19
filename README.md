@@ -6,6 +6,17 @@ This is your team's repository for the four-week physical AI hackathon run by Ro
 **Your team workspace** (team, repository access, submissions): <https://dashboard.all-ai-network.org/j/L36HEH>
 **Questions:** [join the hackathon Slack](https://join.slack.com/t/rockwellnvidi-wq82211/shared_invite/zt-4bp05nsn9-UW3afFtM9wjzWtZiQoJBHg) and ask in the channel that matches your question. The event guide's "Getting help" section says who to ping for what.
 
+## Start here (ProcessDNA)
+
+This team is building **ProcessDNA** on **Dataset 2: Fluid Mixing Station**. Shared context and agent instructions:
+
+- [AGENTS.md](AGENTS.md) — how to work in this repository
+- [docs/project-context.md](docs/project-context.md) — official rules, team decisions, data-use constraints
+- [docs/team-plan.md](docs/team-plan.md) — workstreams and open roster questions
+- [docs/interfaces.md](docs/interfaces.md) — proposed (not agreed) data records
+
+Datasets, the digital twin, model weights, and secrets stay out of Git. Configure local paths privately; see `docs/project-context.md`. Organizer README content below is unchanged.
+
 ## Key dates
 
 | When | What |
