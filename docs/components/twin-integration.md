@@ -4,11 +4,11 @@ Owner: **TBD** (2 people).
 
 ## Purpose and scope
 
-Get the supplied CSI vial-line digital twin running in Isaac Sim if feasible, learn which visual parameters can actually be changed, export sample images, and put a thin dashboard/integration skeleton in place.
+Get the supplied CSI vial-line digital twin running in Isaac Sim if feasible, learn which visual parameters can actually be changed, export sample images, and put a thin dashboard/integration foundation in place.
 
-In scope: inspect twin files, run the provided render script, record capability gaps, optional dashboard.
+In scope: inspect twin files, run the provided render script, record capability gaps, generate sample images when the twin allows it, basic dashboard.
 
-Out of scope: assuming arbitrary recipe mixing or carryover in the twin; modeling tanks that are not in the asset; choosing Streamlit as a required stack; training on real images.
+Out of scope: assuming arbitrary recipe mixing or carryover in the twin; modeling tanks that are not in the asset; choosing Streamlit as a required stack; training on real images; extra dashboard product features (alerts, operator workflows, live line control).
 
 ## Inputs
 
@@ -21,11 +21,10 @@ Keep the twin folder structure; USD files reference each other relatively.
 
 ## Outputs
 
-- Rendered sample images (FillCam and/or CapSealCam) in an ignored `outputs/` directory.
-- A short capability note: what changed in the render vs what the docs claim.
-- Optional dashboard that can display an image path and, later, CV/recipe JSON. Streamlit is a **candidate**, not required.
-
-Renders used as training images must set `data_origin: digital_twin` and `intended_use: train` in provenance ([interfaces.md](../interfaces.md)).
+- Rendered sample images (FillCam and/or CapSealCam) in an ignored `outputs/` directory, when generation succeeds.
+- Provenance on those images (source origin `digital_twin`; see [interfaces.md](../interfaces.md)).
+- A capability note: what the twin actually rendered or changed vs what the docs claim, including limitations.
+- A basic dashboard that displays sample imagery and component results (CV/recipe JSON when those exist). Streamlit is a **candidate**, not a required framework.
 
 ## Dependencies
 
@@ -33,11 +32,11 @@ Renders used as training images must set `data_origin: digital_twin` and `intend
 - Recipe: twin animation is not a recipe engine. Do not block recipe modeling on twin mixing.
 - Compute: Isaac Sim on Brev or local GPU; stop Brev instances when idle ([compute guide](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Compute)).
 
-## Verified twin capabilities (docs and files only)
+## Current achievement (repo)
 
-Isaac Sim was **not** run for this documentation pass.
+No twin runner, dashboard, or synthetic-image exporter is in this Git repository.
 
-From twin README, USDA/JSON, and Dataset 2:
+Isaac Sim was **not** run for this documentation pass. File-level inspection only:
 
 | Item | Evidence |
 | --- | --- |
@@ -66,21 +65,27 @@ From twin README, USDA/JSON, and Dataset 2:
 
 Dataset 2 starter text says teams "can render new scenes with different fills, colors and lighting." That is organizer intent, not a verified feature of this asset. Treat it as a hypothesis for this workstream to test.
 
-## Observable completion
-
-- One successful FillCam render **or** a recorded failure with the exact command, Isaac Sim version, and error.
-- A written list of parameters that were successfully changed vs not supported.
-- Dashboard: optional; if started, it must run locally against a sample image path without requiring the twin to be open.
-
-## Current evidence (repo)
-
-No twin runner, dashboard, or synthetic-image exporter is in this Git repository.
-
-## Next bounded milestone
+## Initial milestone: feasibility investigation
 
 Date: **TBD**.
 
-Open `csi_line.usda` or `stations/fill_station/fill_station.usda` with Isaac Sim 6.0 and run `tools/render_example.py --camera FillCam --frame 686` to an `outputs/` path. Record success or the failure. Do not expand into a dashboard until that result exists.
+Open `csi_line.usda` or `stations/fill_station/fill_station.usda` with Isaac Sim 6.0 and run `tools/render_example.py --camera FillCam --frame 686` to an `outputs/` path.
+
+- **Success:** one reproducible FillCam (or CapSealCam) render command is recorded.
+- **Blocked:** the same command, Isaac Sim version, and error are recorded.
+
+A documented failed render **completes this feasibility investigation with a blocked outcome**. It does **not** complete synthetic-data generation.
+
+## Remaining workstream deliverables
+
+These remain incomplete until done. A blocked feasibility result does not satisfy them.
+
+- **Successful, reproducible sample generation** from the supplied twin (command, version, output path). If the twin cannot produce usable images, say generation is blocked and list what was tried; do not mark this deliverable complete.
+- **Provenance** on generated images (`digital_twin` origin; intended_use does not authorize misuse of real-line sources).
+- **Documented capabilities and limitations** from what was actually run, not from unverified README claims alone.
+- **Basic dashboard/integration foundation:** display sample imagery and available component results. Not optional. Not a new product surface. Streamlit is a candidate only.
+
+If rendering is blocked, the dashboard can still show local sample imagery (including inspect-only real frames, labeled as such) and later CV/recipe outputs so integration work is not stuck behind Isaac Sim.
 
 ## Data-use reminder
 

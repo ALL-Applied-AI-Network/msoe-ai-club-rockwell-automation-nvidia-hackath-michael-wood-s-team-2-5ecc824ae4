@@ -7,7 +7,7 @@ These instructions do not guarantee compliance. Teammate review is still require
 ## Read first
 
 1. This file.
-2. [docs/project-context.md](docs/project-context.md) for official requirements, team decisions, source conflicts, and data-use rules.
+2. [docs/project-context.md](docs/project-context.md) for official requirements, team decisions, differing official wording, and data-use rules.
 3. Only the documents that match the assigned task:
 
 | Task | Also read |
@@ -33,7 +33,8 @@ Follow [docs/project-context.md](docs/project-context.md). In short:
 
 - Official Dataset 2 guidance: look at real line images, video, and labels to understand the station; **do not train models on them**. Generate training data from the supplied digital twin.
 - Real data may be used for inspection and evaluation. Do not describe repeated tuning on real examples as independent evaluation.
-- If official pages conflict, record the conflict instead of silently picking a side.
+- Derived records keep their source origins. Relabeling data as `derived` does not make real production data eligible for training. `intended_use` is intent, not authorization. See [docs/interfaces.md](docs/interfaces.md).
+- If official pages differ, quote them and record the difference instead of silently picking a side.
 - Do not invent extra organizer restrictions.
 
 ## Working rules

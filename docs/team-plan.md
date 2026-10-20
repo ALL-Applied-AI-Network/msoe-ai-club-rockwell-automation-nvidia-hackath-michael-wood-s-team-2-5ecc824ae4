@@ -19,11 +19,13 @@ The UWM CSI event page describes teams of 4–5. This MSOE team's actual roster 
 
 1. CV measures **camera appearance** of liquid in an image.
 2. Recipe modeling estimates an **expected color** from recipe volumes, tank-color assumptions, and optionally a carryover term.
-3. Twin/integration supplies synthetic images (if the twin can) and a place to view results together.
+3. Twin/integration supplies synthetic images when the twin can, and a basic dashboard that displays sample imagery and component results.
 
 Comparison and cause suggestions are follow-on work after those outputs exist. The proposed records are in [interfaces.md](interfaces.md) and are **not agreed**.
 
 First integration milestone date: **TBD** (an earlier "next week" phrase had no calendar date).
+
+Initial milestones (ROI measurement tool; twin feasibility render) are not the same as workstream completion. Details are in the component docs.
 
 ## Workstreams
 
@@ -33,11 +35,13 @@ Owner: Corbin and TBD.
 
 - Explore Dataset 2 videos and recipe labels (inspect only; see [project-context.md](project-context.md)).
 - Extract useful frames and vial/liquid regions.
-- Identify visible liquid (Python/OpenCV). Current repo code does **not** do this yet.
+- Select liquid in the image (Python/OpenCV). A particular segmentation method is not required; a fixed ROI is acceptable if evaluation shows it reliably selects liquid.
 - Measure RGB, HSV, and LAB.
 - Investigate lighting, reflections, and reliability.
 
 Goal: reusable code that accepts a vial image and returns liquid-color measurements.
+
+Initial milestone: the manual/fixed-ROI tool on `cv/color-baseline`. Workstream completion is broader.
 
 Details: [components/cv-data.md](components/cv-data.md).
 
@@ -60,10 +64,10 @@ Owner: TBD.
 
 - Inspect the supplied twin and try running Isaac Sim.
 - Determine which liquid-color, fill-level, and lighting changes are actually supported.
-- Generate and export sample synthetic images if feasible.
-- Establish a basic dashboard for eventual integration. Streamlit is a candidate only.
+- Generate and export sample synthetic images when the twin allows it.
+- Establish a basic dashboard/integration foundation that displays sample imagery and component results. Streamlit is a candidate only, not a required framework.
 
-Goal: twin running and sample images if feasible, plus a basic integration/dashboard foundation.
+Goal: twin running and sample images if generation succeeds, plus a basic dashboard/integration foundation. A documented failed render completes a feasibility investigation with a blocked outcome; it does not complete synthetic-data generation. The dashboard remains a workstream deliverable, not an optional extra.
 
 Details: [components/twin-integration.md](components/twin-integration.md).
 

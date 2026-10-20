@@ -48,19 +48,30 @@ Dataset 2 also says unlabeled real videos and extra camera views can be labeled 
 
 Do not treat repeated tuning on real examples as independent evaluation.
 
-### Source conflict: combined real+synthetic training
+**Team constraint:** model-training data comes from the supplied digital twin. Real production data is for inspection and evaluation, not model training.
 
-The general [Collect and test your own data](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Data-Collection) guide says, when using generated data, to compare real-only, synthetic-only, and combined training, and that a synthetic improvement counts only if it carries over to held-out real examples.
+### Related official wording: synthetic vs real training comparisons
 
-That general wording is broader than Dataset 2's "avoid training your models on" real images. ProcessDNA should follow the **dataset-specific** page for training data, and record any later organizer clarification rather than silently combining the two.
+The general [Collect and test your own data](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Data-Collection) guide (verified 2026-10-19) also says:
 
-### Final demonstration (official)
+> When using generated data, keep its source and generation settings. Compare performance on real-only, synthetic-only, and combined training data. A synthetic improvement counts only if it carries over to held-out real examples.
 
-Final submission is due Sun Nov 1, 11:59 PM CT: ~5-minute video, one-page summary, repository link, and credits ([event guide](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026)).
+That sentence is official and is not the same instruction as Dataset 2 / the event guide. It does **not** authorize training on Dataset 2's supplied production images. How far it applies to other data (for example newly collected line data) is **not decided here**. Do not treat the two pages as silently reconciled.
 
-Judges expect the solution operating on real hardware (CSI production line or FANUC arm). Dataset 2 uses the vial line, not the standalone FANUC cell. Finals are Thu Nov 5. Detailed judging weights are not finalized.
+ProcessDNA keeps the team constraint above unless organizers give Dataset 2-specific clarification.
 
-Live-line tests must be scheduled; teams may not reconfigure cameras, PLCs, recipes, or safety systems without plant-manager approval ([data collection guide](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Data-Collection)).
+### Final submission and hardware demo (official)
+
+Verified from the [event guide](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026) (2026-10-19):
+
+- Final project due **Sun Nov 1, 11:59 PM CT**.
+- Each team submits: a video of about five minutes; a one-page project summary; a link to the team repository; references and credits for data, models, code, and tools.
+- Under **What judges expect**, the video, summary, and finals presentation should **demonstrate the solution operating on real hardware, either the UWM CSI production line or the FANUC robotic arm**, identify a specific problem, explain impact for other manufacturers, and show measured results against a baseline.
+- Dataset 2 uses the vial line, not the standalone FANUC cell.
+- Finals: **Thu Nov 5**, MSOE Diercks Hall, 5:00–8:00 PM, including live presentations.
+- Detailed judging criteria, category weights, and award categories are still being finalized.
+
+Live-line tests must be scheduled. Teams may not reconfigure cameras, PLCs, recipes, or safety systems without approval ([data collection guide](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Data-Collection)).
 
 ### Operating limits on the real station (official Dataset 2)
 
@@ -76,7 +87,7 @@ Live-line tests must be scheduled; teams may not reconfigure cameras, PLCs, reci
 - Dataset: Dataset 2 only, for now.
 - Goal: connect measured image color, estimated recipe color, and process context. Broader comparison and carryover explanations come after those pieces work.
 - Workstreams: Computer Vision & Data; Recipe Modeling & Carryover; Digital Twin & Integration. See [team-plan.md](team-plan.md).
-- Streamlit is a **candidate** dashboard, not a required dependency.
+- A basic dashboard/integration foundation is a Digital Twin & Integration deliverable (sample imagery and component results). Streamlit is a **candidate** framework, not a required dependency. Making the dashboard optional would be a proposed scope change and needs team agreement.
 - Shared records in [interfaces.md](interfaces.md) are **proposed**, not agreed.
 
 ## Supplied assets
@@ -110,9 +121,9 @@ Fill animation: time codes 1–686 at 30 fps; twin README describes blue liquid 
 
 `main` currently contains the organizer README only.
 
-Branch `cv/color-baseline` adds `scripts/measure_color.py`, `requirements.txt`, and a `.gitignore`. That script measures a **manual or fixed rectangle**. It does not detect liquid automatically. No committed automated test suite was found. Details: [components/cv-data.md](components/cv-data.md).
+Branch `cv/color-baseline` adds `scripts/measure_color.py`, `requirements.txt`, and a `.gitignore`. That script is the **initial CV baseline** (manual or fixed rectangle). It is not workstream completion. No committed automated test suite was found. Details: [components/cv-data.md](components/cv-data.md).
 
-No recipe model, twin runner, or dashboard code is in the repository.
+No recipe model, twin runner, synthetic-image exporter, or dashboard code is in the repository. Twin file inspection is documented; Isaac Sim has not been run from this repo. A later failed render would complete a feasibility investigation only, not synthetic-data generation. Details: [components/twin-integration.md](components/twin-integration.md).
 
 ## Unknowns
 
@@ -128,7 +139,7 @@ No recipe model, twin runner, or dashboard code is in the repository.
 | --- | --- |
 | [Event guide](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026) | Rules, dates, judging expectations, training-data sentence |
 | [Dataset 2](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Fluid-Mixing) | Problem, carryover description, data-use, starter ideas |
-| [Data collection](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Data-Collection) | CSI visit/test rules; conflicts with Dataset 2 on combined training |
+| [Data collection](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Data-Collection) | CSI visit/test rules; general synthetic vs real training-comparison sentence |
 | [Compute](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Compute) | Brev / Spark / CSI workstation |
 | [Tools and resources](https://msoe-maic.com/library?article=Rockwell-NVIDIA-Fall-2026-Resources) | Optional tools; not required architecture |
 | Dataset `README.md` and label files | Camera layout, recipes, timestamps |

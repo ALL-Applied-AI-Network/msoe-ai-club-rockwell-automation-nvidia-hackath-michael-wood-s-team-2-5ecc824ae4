@@ -29,7 +29,7 @@ If carryover is included, name `previous_recipe_id` only when known.
 
 ## Dependencies
 
-- CV: later comparison needs `MeasuredAppearance`. This workstream should not wait on automatic liquid detection to parse recipes.
+- CV: later comparison needs `MeasuredAppearance`. This workstream should not wait on workstream-complete liquid-region selection to parse recipes.
 - Twin: do not require the twin to produce physically mixed colors. Official twin docs do not model tanks.
 - Data-use: recipe tables may be used to build the baseline. Pixel training still follows [project-context.md](../project-context.md).
 

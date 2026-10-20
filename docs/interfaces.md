@@ -41,15 +41,34 @@ Useful keys when available:
 
 ## Provenance (required on shared records)
 
+**Proposed, not agreed.**
+
+`data_origin` on a source asset is `real_line`, `digital_twin`, or `unknown`. Computed records may use `derived` or `mixed`, but those values **do not replace** source origin: `sources` must keep each input's origin. Setting `data_origin` to `derived` **alone is not allowed**.
+
 ```json
 {
-  "data_origin": "real_line | digital_twin | derived | unknown",
+  "data_origin": "real_line | digital_twin | mixed | derived | unknown",
   "intended_use": "inspect | evaluate | train | unknown",
-  "generator": "optional string, e.g. measure_color.py or twin render command"
+  "generator": "optional string, e.g. measure_color.py or twin render command",
+  "sources": [
+    {
+      "ref": "dataset- or twin-relative path, or record id",
+      "data_origin": "real_line | digital_twin | unknown"
+    }
+  ]
 }
 ```
 
-`real_line` + `train` contradicts official Dataset 2 guidance. See [project-context.md](project-context.md).
+Rules:
+
+- Direct real frames or labels: `data_origin: real_line`. Direct twin renders: `digital_twin`.
+- Transformed records (measurements, expected-color estimates, comparisons): keep `generator`, and set `data_origin` to `derived` **only if** `sources` lists each input with that input's `data_origin` and a `ref` when known.
+- Mixed inputs (for example a comparison of a real-line measurement and a twin render): `data_origin: mixed`, plus the same `sources` list.
+- Derived and mixed records **retain the stricter source restriction**. Any `real_line` source stays ineligible for model training. Relabeling a record as `derived` does not make real production data eligible for training.
+- `intended_use` describes how the producer **intends** the record to be used. It is **not authorization**. `intended_use: train` does not override Dataset 2 or the team constraint when a source is `real_line`.
+- Unknown origin stays `unknown`. Do not invent a twin origin to make training look allowed.
+
+See [project-context.md](project-context.md).
 
 ## Proposed `MeasuredAppearance`
 
@@ -71,9 +90,15 @@ Useful keys when available:
   "lab_of_mean_rgb": {"L": 28.4, "a": 8.1, "b": -32.0},
   "quality": {"ok": true, "code": null, "detail": null},
   "provenance": {
-    "data_origin": "real_line",
+    "data_origin": "derived",
     "intended_use": "inspect",
-    "generator": "scripts/measure_color.py"
+    "generator": "scripts/measure_color.py",
+    "sources": [
+      {
+        "ref": "vial_fill/images/vial_fill_YYYYMMDD_HHMMSS_microseconds.jpg",
+        "data_origin": "real_line"
+      }
+    ]
   }
 }
 ```
@@ -104,7 +129,13 @@ Current `measure_color.py` JSON is a partial implementation of this shape. It cu
   "provenance": {
     "data_origin": "derived",
     "intended_use": "inspect",
-    "generator": null
+    "generator": null,
+    "sources": [
+      {
+        "ref": "vial_fill/labels/video5_vial_recipes.csv",
+        "data_origin": "real_line"
+      }
+    ]
   }
 }
 ```
@@ -113,7 +144,7 @@ Current `measure_color.py` JSON is a partial implementation of this shape. It cu
 
 ## Proposed later comparison (not started)
 
-A comparison record would reference one measured appearance and one expected color, plus a delta in a named space, and optional `hypotheses` such as `carryover_from_previous_recipe` with an evidence note. Do not implement this until both producers exist.
+A comparison record would reference one measured appearance and one expected color, plus a delta in a named space, and optional `hypotheses` such as `carryover_from_previous_recipe` with an evidence note. Its provenance `sources` must include both inputs and their origins (`mixed` if they differ). Do not implement this until both producers exist.
 
 ## Failure reporting
 
