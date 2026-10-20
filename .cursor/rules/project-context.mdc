@@ -1,0 +1,10 @@
+---
+description: Route ProcessDNA agents to AGENTS.md for shared context and working rules.
+alwaysApply: true
+---
+
+# ProcessDNA routing
+
+Before editing this repository, read `AGENTS.md` and follow it. That file points to project context, the relevant component docs, data-use constraints, and Git limits.
+
+Do not copy contest rules or architecture into this file. This rule does not guarantee agent compliance; teammate review is still required.
