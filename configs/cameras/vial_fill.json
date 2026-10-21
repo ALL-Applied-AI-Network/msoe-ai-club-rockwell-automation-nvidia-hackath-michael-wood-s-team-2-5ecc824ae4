@@ -18,8 +18,14 @@
   },
   "lines_y": {
     "collar_bottom": 272,
+    "backdrop_bottom": 300,
     "puck_top": 370,
+    "bore_view_top": 388,
     "bore_bottom": 420
+  },
+  "line_notes": {
+    "backdrop_bottom": "Above this the vial is seen against the white backdrop (backlit). Empty-vial edge median y=304 (p5 303, p95 308); liquid lensing moves it to ~312-316.",
+    "bore_view_top": "Below this the liquid is seen inside the bright puck bore (empty-vial lightness rises from y~386)."
   },
   "region_notes": {
     "vial": "Liquid search area at the fill station: inside the glass walls, from the collar bottom down to the bottom of the visible puck bore.",

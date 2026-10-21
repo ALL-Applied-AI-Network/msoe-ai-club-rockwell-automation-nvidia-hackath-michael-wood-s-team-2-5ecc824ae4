@@ -44,6 +44,10 @@ MIN_POUR_S = 0.5
 MERGE_GAP_S = 0.5
 MIN_SETTLED_S = 0.5
 
+# The empty-vial reference frame is taken this far from the arrival and the first pour.
+REFERENCE_MARGIN_S = 0.5
+MIN_REFERENCE_WINDOW_S = 0.3
+
 # Settled frames are picked from this long a window before the carrier leaves.
 PICK_WINDOW_S = 1.5
 DEPARTURE_MARGIN_S = 0.2
@@ -187,6 +191,9 @@ def pick_frames(event: FillEvent, n: int = 5, fps: float = VIDEO_FPS) -> list[in
     if event.pour_end_s is None:
         return []
     end_s = event.settled_end_s if event.settled_end_s is not None else event.dwell_end_s
+    if end_s <= event.pour_end_s:
+        # Poured until the departure trim: use whatever is left before the carrier moves.
+        end_s = event.dwell_end_s - DEPARTURE_MARGIN_S
     start_s = max(end_s - PICK_WINDOW_S, event.pour_end_s)
     if event.settled_start_s is not None:
         start_s = max(start_s, event.settled_start_s)
@@ -194,6 +201,21 @@ def pick_frames(event: FillEvent, n: int = 5, fps: float = VIDEO_FPS) -> list[in
     if last < first:
         return []
     return sorted(set(np.linspace(first, last, min(n, last - first + 1)).round().astype(int).tolist()))
+
+
+def reference_frame(event: FillEvent, fps: float = VIDEO_FPS) -> int | None:
+    """Return a frame index showing the parked vial before its first pour, if there is one.
+
+    The frame is midway between the end of the carrier's arrival and shortly before the
+    first pour; None when that window is too short.
+    """
+    if event.pour_start_s is None:
+        return None
+    start_s = event.dwell_start_s + ARRIVAL_IGNORE_S + REFERENCE_MARGIN_S
+    end_s = event.pour_start_s - REFERENCE_MARGIN_S
+    if end_s - start_s < MIN_REFERENCE_WINDOW_S:
+        return None
+    return int(round((start_s + end_s) / 2 * fps))
 
 
 def match_labels(events: list[FillEvent], vial_labels: pd.DataFrame) -> pd.DataFrame:

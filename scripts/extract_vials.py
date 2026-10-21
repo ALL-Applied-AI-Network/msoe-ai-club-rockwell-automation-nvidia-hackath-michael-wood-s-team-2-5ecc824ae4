@@ -1,8 +1,9 @@
 """Extract settled-vial frames from vial_fill videos.
 
 For each video: compute per-frame signals (cached as signals.csv), detect fill events,
-save a few frames from each event's settled window (full frame plus vial crop), and
-write events.csv and manifest.csv. For video 5 only, events are matched to the official
+save a few frames from each event's settled window (full frame plus vial crop) and one
+empty-vial reference frame from before the first pour, and write events.csv and
+manifest.csv. For video 5 only, events are matched to the official
 vial labels by time overlap; vial_id stays empty unless the match is unambiguous.
 
 Outputs are derived from real line video: inspection/evaluation only, not training data.
@@ -19,7 +20,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vialcv import dataset  # noqa: E402
-from vialcv.events import compute_signals, detect_events, match_labels, pick_frames  # noqa: E402
+from vialcv.events import (  # noqa: E402
+    compute_signals,
+    detect_events,
+    match_labels,
+    pick_frames,
+    reference_frame,
+)
 from vialcv.locate import locate_vial  # noqa: E402
 from vialcv.roi import crop, load_camera_config  # noqa: E402
 
@@ -59,6 +66,14 @@ def extract_video(video_id: int, args, config) -> pd.DataFrame:
 
     manifest = []
     for event, row in zip(events, event_table.itertuples()):
+        reference_path = None
+        reference_index = reference_frame(event)
+        if reference_index is not None:
+            reference = read_frame(video, reference_index)
+            if reference is not None:
+                reference_path = out_dir / f"event{event.event_idx:03d}_ref_f{reference_index:06d}.png"
+                cv2.imwrite(str(reference_path), reference)
+
         for frame_index in pick_frames(event, args.frames_per_event):
             frame = read_frame(video, frame_index)
             if frame is None:
@@ -80,6 +95,7 @@ def extract_video(video_id: int, args, config) -> pd.DataFrame:
                 "video_s": round(dataset.frame_to_seconds(frame_index), 3),
                 "frame_path": frame_path.as_posix(),
                 "crop_path": crop_path.as_posix() if crop_path else None,
+                "reference_path": reference_path.as_posix() if reference_path else None,
                 "roi_xywh": list(located.vial_xywh) if located.vial_xywh else None,
                 "locate_ok": located.ok,
                 "locate_code": located.code,

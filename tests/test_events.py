@@ -79,6 +79,14 @@ def test_pour_until_departure_is_short_settle():
     assert event.quality == "short_settle"
 
 
+def test_short_settle_still_picks_frames_before_departure():
+    # Settled window ended before the last pour did (seen on video 5, vial 3).
+    event = FillEvent(2, 75.7, 121.0, 3, 91.9, 119.7, None, 119.5, "short_settle", None)
+    frames = pick_frames(event, n=5)
+    assert frames
+    assert all(round(119.7 * FPS) <= f <= round(120.8 * FPS) for f in frames)
+
+
 def test_dwell_without_pour():
     signals = make_signals(50, dwells=[(2, 45)])
     (event,) = detect_events(signals)
