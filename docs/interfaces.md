@@ -25,6 +25,7 @@ Match the current CV baseline unless a later change is agreed:
 - OpenCV float `COLOR_RGB2HSV` after scaling RGB to 0–1: `h_degrees` (0–360), `s_0_1`, `v_0_1`.
 - OpenCV float `COLOR_RGB2Lab`: `L`, `a`, `b` as returned by OpenCV.
 - Always name the space and the aggregation. If a producer uses another method, change `method` and document it.
+- **Proposed addition** (branch `cv/color-measurement`, not agreed): aggregation `per_pixel_robust`. Every pixel is converted with the same OpenCV float conversions, then summarized by median, 10% trimmed mean, and MAD (RGB 0-255, Lab); hue by a saturation-weighted circular mean with resultant length and circular std (degrees). CIEDE2000 comes from scikit-image; OpenCV float Lab agrees with scikit-image sRGB/D65 Lab to within dE00 0.32.
 
 Expected color may use a different space. It must name `space` and `mixing_model` explicitly.
 
@@ -106,6 +107,55 @@ See [project-context.md](project-context.md).
 Quality: `ok=false` for unreadable images, empty/out-of-bounds ROI, cancelled selection, or other failures. Include `code` such as `unreadable_image` or `invalid_roi`.
 
 Current `measure_color.py` JSON is a partial implementation of this shape. It currently writes a resolved absolute `image` path and has no provenance or quality object. Aligning it is future work.
+
+### Proposed extension (branch `cv/color-measurement`)
+
+**Proposed cross-workstream change, not agreed.** `vialcv.detect.detect_vial_color()` and `scripts/detect_vial_color.py --json` emit the `MeasuredAppearance` fields above plus the blocks below. Consumers that read only the original fields keep working, with two differences noted after the example.
+
+Why: the same liquid looks very different against the white backdrop, the dark belt, and the bright puck bore behind the vial (see [components/cv-lighting-study.md](components/cv-lighting-study.md)), so a single color for the whole vial mixes backgrounds. Colors should be compared within one zone.
+
+```json
+{
+  "input": "full_frame | vial_crop | image",
+  "roi_source": "config | detected | argument | whole_image",
+  "pixel_count": 1145,
+  "method": "mean_rgb_then_convert",
+  "rgb_0_255": [1.0, 79.6, 112.1],
+  "color": {
+    "primary_zone": "backlit | bore | dark_background | whole_mask",
+    "primary": {
+      "ok": true,
+      "pixel_count": 1145,
+      "method": "per_pixel_robust",
+      "rgb_0_255": {"median": [0, 80, 114], "trimmed_mean": [0.4, 80.1, 112.8], "mad_sigma": [0, 5.9, 7.4]},
+      "hsv": {"h_circular_mean_degrees": 197.6, "h_resultant_length": 1.0, "h_circular_std_degrees": 1.16,
+              "h_weighting": "saturation", "s_0_1_median": 1.0, "v_0_1_median": 0.447},
+      "lab": {"median": {"L": 31.7, "a": -7.9, "b": -24.7}, "trimmed_mean": {}, "mad_sigma": {}},
+      "mean_rgb_then_convert": {"rgb_0_255": [], "hsv_of_mean_rgb": {}, "lab_of_mean_rgb": {}}
+    },
+    "zones": {"backlit": {}, "dark_background": {}, "bore": {}},
+    "whole_mask": {}
+  },
+  "fill": {"state": "in_view | at_or_above_view_top | unknown", "coordinates": "frame | image",
+           "fill_line_y_px": null, "visible_top_y_px": 272, "height_above_puck_top_px": null},
+  "segmentation": {"ok": true, "code": null, "method": "delta_e76_vs_empty_reference | delta_e76_vs_camera_empty_profile | lab_chroma_threshold",
+                   "glare_fraction": 0.043, "interior_columns": [5, 46]},
+  "white_balance": {"ok": true, "method": "none | white_patch | gray_world", "gains_rgb": [1, 1, 1],
+                    "reference_rgb_0_255": null, "target_level": null},
+  "quality": {"ok": true, "code": null, "detail": null, "warnings": []}
+}
+```
+
+(Values from `scripts/detect_vial_color.py --json` on a video 5 settled frame of vial 9, abbreviated; `{}` marks blocks with the same shape as `primary`.)
+
+Differences from the original proposal:
+
+- `pixel_count` is the number of **liquid pixels in the primary zone** (after removing glass walls, meniscus, and glare), not the ROI area.
+- `method` / `rgb_0_255` / `hsv_of_mean_rgb` / `lab_of_mean_rgb` are the `mean_rgb_then_convert` values **of the primary zone's liquid pixels**, not of the whole ROI.
+- `image_ref` is whatever the caller passes (the CLI gives a dataset-relative path under `$DATASET_ROOT`, else the bare file name), never an absolute path.
+- Fill is reported in pixels only. `at_or_above_view_top` means the surface is hidden by the collar; it is not a measured level.
+
+Quality codes used: `unreadable_image`, `invalid_roi`, `invalid_reference`, `vial_not_found`, `vial_off_station`, `no_liquid_detected` (empty, clear, or very pale: indistinguishable by color), `low_contrast`, `mask_too_small`, `no_zone_with_enough_pixels`. Warnings (measurement still made): `roi_drift`, `assumed_config_vial_crop`, `unknown_crop_no_zones`, `white_balance_needs_full_frame`, `white_reference_occluded` and other white-balance codes, `glare_fraction_high`, `no_empty_reference_for_this_roi`.
 
 ## Proposed `ExpectedColor`
 

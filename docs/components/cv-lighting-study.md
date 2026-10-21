@@ -88,4 +88,4 @@ The far backdrop is the same paper as the white reference, so it partly measures
 - The settled window is short (often under 3 s), so only short-term stability is measured per vial.
 - Videos 1-4 are unlabeled and tank colors differ between runs, so cross-run color accuracy cannot be evaluated.
 - 6 of 64 vials (4 in video 3, 2 in video 5) are too pale for segmentation and are absent from these tables.
-- Per-still labels in `video5_frame_labels.csv` are not used: their `video_s` drifts from video time by ~18% (see `docs/components/cv-data.md` after the docs update, or commit "Extract settled-vial frames").
+- Per-still labels in `video5_frame_labels.csv` are not used: their `video_s` drifts from video time by ~18% (see [cv-data.md](cv-data.md), "Findings that affect other work").
