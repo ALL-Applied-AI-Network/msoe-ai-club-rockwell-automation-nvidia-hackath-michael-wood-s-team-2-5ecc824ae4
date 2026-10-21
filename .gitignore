@@ -10,3 +10,35 @@ outputs/
 
 # Local configuration
 .env
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local datasets, digital twins, and generated artifacts
+data/
+datasets/
+outputs/
+runs/
+
+# Model weights and checkpoints
+weights/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.safetensors
+
+# Secrets and local path config
+.env
+.env.*
+!.env.example
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
