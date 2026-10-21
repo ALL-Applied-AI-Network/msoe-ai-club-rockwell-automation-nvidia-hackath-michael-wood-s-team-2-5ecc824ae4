@@ -1,0 +1,30 @@
+{
+  "camera_id": "vial_fill",
+  "image_size_wh": [640, 480],
+  "calibration": {
+    "source": "vial_fill stills from videos 1-4, read from enlarged gridded crops",
+    "data_origin": "real_line",
+    "notes": "Video 5 was not used to set these values; it is reserved for evaluation."
+  },
+  "regions_xywh": {
+    "vial": [288, 272, 52, 148],
+    "collar": [258, 196, 122, 78],
+    "puck_bore": [284, 370, 58, 50],
+    "nozzle_stream": [298, 88, 18, 57],
+    "white_reference": [160, 90, 80, 90],
+    "timestamp_overlay": [0, 440, 290, 40]
+  },
+  "lines_y": {
+    "collar_bottom": 272,
+    "puck_top": 370,
+    "bore_bottom": 420
+  },
+  "region_notes": {
+    "vial": "Liquid search area at the fill station: inside the glass walls, from the collar bottom down to the bottom of the visible puck bore.",
+    "collar": "Black vial collar on the carrier; moves with the carrier.",
+    "puck_bore": "Liquid seen through the opening in the top of the aluminum puck; low fills are visible only here.",
+    "nozzle_stream": "Below the nozzle tip and above the vial labels; a dispense stream passes through here.",
+    "white_reference": "Plain white backdrop left of the station; occluded only while a vial is moved out.",
+    "timestamp_overlay": "Burned-in capture timestamp; never measure here."
+  }
+}
