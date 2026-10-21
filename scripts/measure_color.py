@@ -1,31 +1,16 @@
 """Measure the average RGB color of a manually selected image region."""
 
+import sys
 import json
 import argparse
 from pathlib import Path
 
 import cv2
-import numpy as np
 
+# Allow running as `python scripts/measure_color.py` without installing the repo.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-def measure_rgb(image: np.ndarray, roi: tuple[int, int, int, int]) -> list[float]:
-    """Return mean RGB values for a rectangular region in a BGR image."""
-    x, y, width, height = roi
-    image_height, image_width = image.shape[:2]
-
-    if (
-        width <= 0
-        or height <= 0
-        or x < 0
-        or y < 0
-        or x + width > image_width
-        or y + height > image_height
-    ):
-        raise ValueError("Region must be nonempty and inside the image.")
-
-    patch = image[y:y + height, x:x + width]
-    rgb = cv2.cvtColor(patch, cv2.COLOR_BGR2RGB)
-    return rgb.mean(axis=(0, 1)).tolist()
+from vialcv.measure import convert_mean_rgb, measure_rgb  # noqa: E402
 
 
 def main() -> None:
@@ -73,11 +58,7 @@ def main() -> None:
     except ValueError as error:
         parser.error(str(error))
 
-    # Represent the mean color as one RGB pixel, normalized to 0–1.
-    mean_pixel = np.array([[mean_rgb]], dtype=np.float32) / 255.0
-
-    hsv = cv2.cvtColor(mean_pixel, cv2.COLOR_RGB2HSV)[0, 0]
-    lab = cv2.cvtColor(mean_pixel, cv2.COLOR_RGB2Lab)[0, 0]
+    hsv, lab = convert_mean_rgb(mean_rgb)
 
     if args.json:
         result = {
