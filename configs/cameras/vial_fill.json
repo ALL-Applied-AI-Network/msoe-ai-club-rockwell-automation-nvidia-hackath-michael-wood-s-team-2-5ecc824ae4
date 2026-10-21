@@ -2,13 +2,13 @@
   "camera_id": "vial_fill",
   "image_size_wh": [640, 480],
   "calibration": {
-    "source": "vial_fill stills from videos 1-4, read from enlarged gridded crops",
+    "source": "vial_fill stills from videos 1-4, read from enlarged gridded crops; collar x set to the median detected collar center (vialcv.locate) on those stills",
     "data_origin": "real_line",
     "notes": "Video 5 was not used to set these values; it is reserved for evaluation."
   },
   "regions_xywh": {
     "vial": [288, 272, 52, 148],
-    "collar": [258, 196, 122, 78],
+    "collar": [255, 196, 122, 78],
     "puck_bore": [284, 370, 58, 50],
     "nozzle_stream": [298, 88, 18, 57],
     "white_reference": [160, 90, 80, 90],
