@@ -95,9 +95,10 @@ def test_gray_vial_without_reference_is_low_contrast():
     assert not result.ok and result.code == "low_contrast"
 
 
-def test_tiny_fill_is_mask_too_small():
+def test_short_bottom_strip_is_not_a_liquid_column():
+    # A few changed rows at the bore floor (reflections, residue) are not a fill.
     result = segment_liquid(filled_vial(140, glare=False), empty_vial(), puck_top_row=98)
-    assert not result.ok and result.code == "mask_too_small"
+    assert not result.ok and result.code == "no_liquid_detected"
 
 
 def test_reference_shape_must_match():

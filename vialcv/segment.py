@@ -44,6 +44,9 @@ ROW_LIQUID_FRACTION = 0.5
 BOTTOM_SLACK_ROWS = 25
 # A fill line within this many rows of the top means the surface is at or above the view.
 TOP_SLACK_ROWS = 2
+# Shorter "columns" are bore-floor reflections or residue: on videos 1-4, 4 of 33 empty
+# vials had 1-14 such rows against the camera profile. A 30 mL fill spans ~90 rows.
+MIN_COLUMN_ROWS = 15
 
 # Rows below the fill line that hold the bright meniscus band.
 MENISCUS_ROWS = 7
@@ -130,6 +133,8 @@ def liquid_block(row_fraction: np.ndarray) -> tuple[int, int] | None:
     top = bottom
     while top > 0 and liquid[top - 1]:
         top -= 1
+    if bottom - top + 1 < MIN_COLUMN_ROWS:
+        return None
     return top, bottom
 
 

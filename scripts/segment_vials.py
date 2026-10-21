@@ -78,7 +78,9 @@ def main() -> None:
             zones = crop_zones(config, roi)
             results = {
                 "ref": segment_liquid(vial_crop, reference, puck_row, zones=zones) if reference is not None else None,
-                "profile": segment_liquid(vial_crop, None, puck_row, empty_profile, zones),
+                # The profile only lines up with the configured ROI, not a drifted one.
+                "profile": segment_liquid(vial_crop, None, puck_row,
+                                          empty_profile if roi == config.region("vial") else None, zones),
             }
             record = {"video_id": video_id, "event_idx": row.event_idx, "frame_index": row.frame_index,
                       "vial_id": row.vial_id, "roi_y": roi[1]}
