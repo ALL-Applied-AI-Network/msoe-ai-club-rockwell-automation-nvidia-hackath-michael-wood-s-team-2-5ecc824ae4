@@ -1,7 +1,0 @@
-video_id,event_idx,frame_index,vial_id,roi_y,ref_ok,ref_code,ref_fill_state,ref_fill_line_y,ref_mask_pixels,ref_glare_fraction,ref_method,ref_backlit_pixels,ref_dark_background_pixels,ref_bore_pixels,profile_ok,profile_code,profile_fill_state,profile_fill_line_y,profile_mask_pixels,profile_glare_fraction,profile_method,profile_backlit_pixels,profile_dark_background_pixels,profile_bore_pixels
-3,0,444,,272,True,,at_or_above_view_top,272.0,5751,0.028,delta_e76_vs_empty_reference,1116.0,2160.0,1115.0,True,,at_or_above_view_top,272.0,5736,0.027,delta_e76_vs_camera_empty_profile,1115.0,2160.0,1114.0
-3,1,1554,,272,False,low_contrast,unknown,,0,0.0,delta_e76_vs_empty_reference,,,,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_camera_empty_profile,,,
-3,2,2690,,272,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_empty_reference,,,,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_camera_empty_profile,,,
-3,3,3688,,272,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_empty_reference,,,,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_camera_empty_profile,,,
-3,4,4724,,272,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_empty_reference,,,,False,no_liquid_detected,unknown,,0,0.0,delta_e76_vs_camera_empty_profile,,,
-3,5,5724,,272,True,,in_view,360.0,2053,0.028,delta_e76_vs_empty_reference,0.0,120.0,1213.0,True,,in_view,359.0,2077,0.027,delta_e76_vs_camera_empty_profile,0.0,160.0,1197.0
