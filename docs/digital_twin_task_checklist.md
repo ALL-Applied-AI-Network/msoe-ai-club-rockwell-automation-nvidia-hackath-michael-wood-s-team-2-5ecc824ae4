@@ -6,9 +6,9 @@
 **Goal:** Give the CV/ProcessDNA team reproducible **recipe-labeled, time-ordered normal and abnormal synthetic runs** with honest ground truth and known limitations.
 
 > **Checklist legend:** `[x]` = completed and verified; `[ ]` = remaining or not yet verified.  
-> **Ownership:** **Rendering owner** = Isaac Sim and generator development; **Validation owner** = your friend (test scenarios, image usability, documentation); **Both** = handoff/integration. The CV/modeling team owns the actual detector, anomaly model, and RecipeTrace logic.
+> **Ownership:** **Rendering owner** = Sonny; **Validation owner** = Jin (test scenarios, image usability, documentation); **Both** = handoff/integration. The CV/modeling team owns the actual detector, anomaly model, and RecipeTrace logic.
 
-## 1. Completed — Rendering and Generators (Rendering owner)
+## 1. Completed — Rendering and Generators (Rendering owner/Sonny)
 
 - [x] Install and run Isaac Sim 6.0 headlessly on the MSOE GB10 through SSH.
 - [x] Load the supplied CSI filling-station USD scene and use FillCam.
@@ -20,7 +20,7 @@
 - [x] Produce carryover metadata that distinguishes proxy parameters from physical residue measurements.
 - [x] Use the team's `measure_color.py` with a **manual ROI** on all eight color variants; all returned numeric RGB measurements. This is a generator sanity check, **not** full CV validation.
 
-## 2. GitHub and Reproduction (Rendering owner; Both review)
+## 2. GitHub and Reproduction (Rendering owner/Sonny; Both review)
 
 - [x] Create clean `feature/digital-twin` branch from `origin/main`.
 - [x] Create `digital_twin/` with tools, examples, and data directories.
@@ -33,7 +33,7 @@
 - [ ] Confirm what CSI-provided assets are permitted to be committed/shared; do not publish restricted source assets or credentials.
 - [ ] Decide how the full image/video datasets will be shared (repository, approved shared storage, or archives) without committing unnecessary bulk output.
 
-## 3. Test Design and Data Usability (Validation owner / friend)
+## 3. Test Design and Data Usability (Validation owner/Jin)
 
 - [ ] Prepare the **20 proposed cases T01–T20** covering correct recipes, carryover, mixing errors, camera/lighting variation, fill level, obstruction, missing vial, and low contrast.
 - [ ] Mark each case **GENERATED**, **NOT YET GENERATED**, or **BLOCKED**; do not imply that an unsupported scenario was tested.
@@ -45,7 +45,7 @@
 - [ ] Request additional renders or simulation modifications needed for blocked cases.
 - [ ] Evaluate normal/abnormal PASS/FLAG behavior only when recipe targets and defensible labels exist; do not fabricate physical defect ground truth.
 
-## 4. Temporal Data — Biggest Remaining Digital Twin Gap (Rendering owner + Validation owner)
+## 4. Temporal Data — Biggest Remaining Digital Twin Gap (Both review)
 
 - [ ] Define the **run-level schema**: run ID, recipe/phase, camera, frame, timestamp, simulation condition, expected visual event, event onset, and whether the label is synthetic/proxy.
 - [ ] Verify what the provided USD animation actually changes over time (filling motion versus real mixing/color dynamics).
@@ -56,7 +56,7 @@
 - [ ] Supply sequence-level metadata and expected change points to the CV/ProcessDNA team.
 - [ ] Keep evaluation splits at the **run level**, not by randomly splitting neighboring frames.
 
-## 5. Physical Lab and Simulation-to-Real Comparison (Both, with authorized testbed access)
+## 5. Physical Lab and Simulation-to-Real Comparison (Both review)
 
 - [ ] Confirm rules on real footage: synthetic data for training; only permitted uses of real data for inspection/evaluation/calibration.
 - [ ] Confirm camera views, timestamps, recipe IDs, and whether synchronized camera footage is available.
@@ -65,7 +65,7 @@
 - [ ] Verify whether recipe changes and first-vial effects are visible and safely reproducible on the real equipment.
 - [ ] Document sim-to-real differences and prioritize the synthetic scenarios needed to reduce them.
 
-## 6. Modeling Boundaries and Scientific Honesty (Both)
+## 6. Modeling Boundaries and Scientific Honesty (Both review)
 
 - [ ] Keep **shader-color interpolation** labeled as a carryover *visual proxy*, **not** a physically validated residue/mixing model.
 - [ ] Do not claim contamination affects only the first vial until the simulator represents vials independently and this behavior is demonstrated.
@@ -73,7 +73,7 @@
 - [ ] Treat `low_contrast` or `vial_off_station` as **quality/detection failures**, not proof of incorrect liquid.
 - [ ] Separate your deliverables (rendered data, labels, reproducible generation, validation observations) from the CV/ProcessDNA team's detector, anomaly model, and RecipeTrace diagnosis.
 
-## 7. Minimum Handoff for the Team (Both)
+## 7. Minimum Handoff for the Team (Both review)
 
 - [ ] Working generator scripts, README, and permitted source-asset instructions.
 - [ ] A sample of generated PNGs/MP4 and the associated metadata CSVs.
@@ -87,7 +87,7 @@
 
 1. **Finish the GitHub handoff**: include ignored metadata CSVs, review, commit, and push.
 2. **Produce a normal/abnormal temporal pair** and frame-level metadata.
-3. **Have your friend run the validation matrix** on available data, logging blocked tests.
+3. **Have your Jin run the validation matrix** on available data, logging blocked tests.
 4. **Compare against permitted real camera footage** and document realism gaps.
 5. Improve first-vial-specific carryover/physics only if the assets and time support it.
 
