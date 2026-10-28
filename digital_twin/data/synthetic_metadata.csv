@@ -1,0 +1,9 @@
+image_file,variant,camera,usd_frame,shader_r,shader_g,shader_b,pixel_mean_abs_difference_from_baseline,simulated_defect,recipe_id,expected_pass_fail
+images/vial_000_blue_baseline.png,blue_baseline,FillCam,686,0.006,0.2,0.3,0.000,not_modeled,not_available,not_labeled
+images/vial_001_blue_darker.png,blue_darker,FillCam,686,0.004,0.09,0.17,0.401,not_modeled,not_available,not_labeled
+images/vial_002_blue_lighter.png,blue_lighter,FillCam,686,0.06,0.3,0.39,0.367,not_modeled,not_available,not_labeled
+images/vial_003_teal_variant.png,teal_variant,FillCam,686,0.008,0.27,0.24,0.204,not_modeled,not_available,not_labeled
+images/vial_004_green_variant.png,green_variant,FillCam,686,0.02,0.35,0.05,0.722,not_modeled,not_available,not_labeled
+images/vial_005_red_variant.png,red_variant,FillCam,686,0.35,0.025,0.02,1.484,not_modeled,not_available,not_labeled
+images/vial_006_purple_variant.png,purple_variant,FillCam,686,0.18,0.025,0.28,0.733,not_modeled,not_available,not_labeled
+images/vial_007_yellow_variant.png,yellow_variant,FillCam,686,0.38,0.32,0.025,1.271,not_modeled,not_available,not_labeled
