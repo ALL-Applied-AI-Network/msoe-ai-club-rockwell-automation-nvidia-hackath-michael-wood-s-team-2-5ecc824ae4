@@ -79,6 +79,54 @@ def stream_column_dev(window_bgr: np.ndarray) -> float:
     return float(np.sort(deviation)[-3:].mean())
 
 
+class SignalTracker:
+    """Per-frame signals for a stream of sampled frames, one `update()` per frame.
+
+    `samples_per_second` is the rate at which update() is called (video fps / step).
+    """
+
+    def __init__(self, config: CameraConfig, samples_per_second: float):
+        self.config = config
+        self.lag = max(int(round(VIAL_CHANGE_LAG_S * samples_per_second)), 1)
+        self.recent_vials: list[np.ndarray] = []
+        self.previous_station = None
+
+    def update(self, frame: np.ndarray) -> tuple[float, float, float, float]:
+        """Return (collar_dark, station_motion, vial_change, stream_column_dev) for a BGR frame."""
+        config = self.config
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        collar_dark = float((crop(gray, config.region("collar_face")) < COLLAR_DARK_GRAY).mean())
+
+        station = cv2.resize(crop(gray, config.region("station")), None, fx=0.25, fy=0.25,
+                             interpolation=cv2.INTER_AREA).astype(np.float32)
+        motion = np.nan if self.previous_station is None else float(np.abs(station - self.previous_station).mean())
+        self.previous_station = station
+
+        vial = crop(gray, config.region("vial")).astype(np.float32)
+        self.recent_vials.append(vial)
+        change = float(np.abs(vial - self.recent_vials[0]).mean()) if len(self.recent_vials) > self.lag else np.nan
+        if len(self.recent_vials) > self.lag:
+            self.recent_vials.pop(0)
+
+        return collar_dark, motion, change, stream_column_dev(crop(frame, config.region("nozzle_stream")))
+
+
+def station_state(collar_dark: float, motion: float, change: float, stream: float) -> str:
+    """Return a coarse live state from one frame's signals, using the event thresholds.
+
+    For display only; detect_events works on the whole signal history and is what the
+    measurements use.
+    """
+    if not np.isnan(motion) and motion > STATION_STILL_MOTION:
+        return "moving"
+    if collar_dark < COLLAR_PRESENT_FRACTION:
+        return "no carrier"
+    if stream >= STREAM_ON_COLUMN_DEV or (not np.isnan(change) and change >= VIAL_POURING_CHANGE):
+        return "pouring"
+    return "parked, still"
+
+
 def compute_signals(video: str | Path, config: CameraConfig, step: int = 2,
                     fps: float | None = None) -> pd.DataFrame:
     """Return one row of signals per sampled frame of a vial_fill video.
@@ -87,30 +135,9 @@ def compute_signals(video: str | Path, config: CameraConfig, step: int = 2,
     and all time thresholds use it, so recordings at other rates are timed correctly.
     """
     fps = fps or video_fps(video)
-    lag = max(int(round(VIAL_CHANGE_LAG_S * fps / step)), 1)
-    recent_vials: list[np.ndarray] = []
-    previous_station = None
-    rows = []
-
-    for frame_index, frame in iter_frames(video, step=step):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        collar_dark = float((crop(gray, config.region("collar_face")) < COLLAR_DARK_GRAY).mean())
-
-        station = cv2.resize(crop(gray, config.region("station")), None, fx=0.25, fy=0.25,
-                             interpolation=cv2.INTER_AREA).astype(np.float32)
-        motion = np.nan if previous_station is None else float(np.abs(station - previous_station).mean())
-        previous_station = station
-
-        vial = crop(gray, config.region("vial")).astype(np.float32)
-        recent_vials.append(vial)
-        change = float(np.abs(vial - recent_vials[0]).mean()) if len(recent_vials) > lag else np.nan
-        if len(recent_vials) > lag:
-            recent_vials.pop(0)
-
-        rows.append((frame_index, frame_index / fps, collar_dark, motion, change,
-                     stream_column_dev(crop(frame, config.region("nozzle_stream")))))
-
+    tracker = SignalTracker(config, fps / step)
+    rows = [(frame_index, frame_index / fps, *tracker.update(frame))
+            for frame_index, frame in iter_frames(video, step=step)]
     return pd.DataFrame(rows, columns=SIGNAL_COLUMNS)
 
 
