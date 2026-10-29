@@ -14,7 +14,8 @@
     "collar_face": [265, 238, 100, 22],
     "station": [250, 190, 140, 240],
     "white_reference": [160, 90, 80, 90],
-    "timestamp_overlay": [0, 440, 290, 40]
+    "timestamp_overlay": [0, 440, 290, 40],
+    "static_scene": [200, 0, 240, 70]
   },
   "lines_y": {
     "collar_bottom": 272,
@@ -35,6 +36,7 @@
     "collar_face": "Dark front face of a carrier collar parked at the station; mostly dark pixels when a carrier is present.",
     "station": "Carrier, vial, and puck at the station; frame-to-frame change here means a carrier is moving.",
     "white_reference": "Plain white backdrop left of the station; occluded only while a vial is moved out.",
-    "timestamp_overlay": "Burned-in capture timestamp; never measure here."
+    "timestamp_overlay": "Burned-in capture timestamp; never measure here.",
+    "static_scene": "Nozzle and equipment above the station that never move with carriers; used to detect camera shift."
   }
 }

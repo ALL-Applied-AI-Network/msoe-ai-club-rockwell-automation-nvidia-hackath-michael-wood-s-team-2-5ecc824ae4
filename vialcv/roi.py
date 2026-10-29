@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs" / "cameras"
@@ -70,6 +71,44 @@ def crop(image: np.ndarray, roi: Roi) -> np.ndarray:
     validate_roi(roi, (width, height))
     x, y, w, h = roi
     return image[y:y + h, x:x + w]
+
+
+REGION_COLORS = [(0, 0, 255), (0, 200, 0), (255, 0, 0), (0, 200, 255), (255, 0, 255), (128, 128, 128),
+                 (0, 128, 255), (255, 255, 0), (128, 0, 255)]
+
+
+def draw_regions(image: np.ndarray, config: CameraConfig) -> np.ndarray:
+    """Return a copy of a BGR image with the camera's regions and reference lines drawn."""
+    canvas = image.copy()
+    for i, (name, (x, y, w, h)) in enumerate(config.regions.items()):
+        color = REGION_COLORS[i % len(REGION_COLORS)]
+        cv2.rectangle(canvas, (x, y), (x + w - 1, y + h - 1), color, 1)
+        cv2.putText(canvas, name, (x, max(y - 3, 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1)
+    for y in config.lines_y.values():
+        cv2.line(canvas, (250, y), (390, y), (255, 255, 255), 1)
+    return canvas
+
+
+def contact_sheet(tiles: list[np.ndarray], columns: int) -> np.ndarray:
+    """Tile same-size images into rows of `columns`, padding with black."""
+    blank = np.zeros_like(tiles[0])
+    tiles = tiles + [blank] * (-len(tiles) % columns)
+    return np.vstack([np.hstack(tiles[i:i + columns]) for i in range(0, len(tiles), columns)])
+
+
+def static_scene(images: list[np.ndarray], config: CameraConfig) -> np.ndarray:
+    """Return the median grayscale `static_scene` region over images, for shift checks."""
+    x, y, w, h = config.region("static_scene")
+    gray = [cv2.cvtColor(image[y:y + h, x:x + w], cv2.COLOR_BGR2GRAY) for image in images]
+    return np.median(np.stack(gray), axis=0).astype(np.float32)
+
+
+def camera_shift(reference: np.ndarray, current: np.ndarray) -> tuple[float, float, float]:
+    """Return (dx, dy, response) of `current` relative to `reference` static scenes."""
+    # A Hanning window keeps the crop edges from biasing the estimate toward zero.
+    window = cv2.createHanningWindow(reference.shape[::-1], cv2.CV_32F)
+    (dx, dy), response = cv2.phaseCorrelate(reference, current, window)
+    return float(dx), float(dy), float(response)
 
 
 def check_image_size(image: np.ndarray, config: CameraConfig) -> None:
