@@ -139,3 +139,19 @@ def test_real_dataset_matches_readme():
     frame_index, frame = next(dataset.iter_frames(dataset.video_path("vial_fill", 2), start=600))
     assert frame_index == 600
     assert frame.shape == (480, 640, 3)
+
+
+def test_dataset_clock_fps():
+    # A camera delivering ~24.7 fps is on the dataset clock when analyzed at 30 fps.
+    assert dataset.dataset_clock_fps(24.7) == pytest.approx(30.0, abs=0.05)
+    assert dataset.DATASET_TIME_SCALE == pytest.approx(1.215)
+
+
+def test_video_fps_reads_file_rate(tmp_path):
+    path = tmp_path / "rate.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 24.7, (32, 24))
+    for _ in range(3):
+        writer.write(np.zeros((24, 32, 3), dtype=np.uint8))
+    writer.release()
+    assert dataset.video_fps(path) == pytest.approx(24.7, abs=0.01)
+    assert dataset.video_fps(tmp_path / "missing.avi") == dataset.VIDEO_FPS

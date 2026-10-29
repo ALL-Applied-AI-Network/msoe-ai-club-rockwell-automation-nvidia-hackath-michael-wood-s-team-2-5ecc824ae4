@@ -7,9 +7,10 @@ URL). For each frame it checks:
 - vial location: a parked vial must be found where the config expects it;
 - white patch: the backdrop reference must be unoccluded and unclipped.
 
-Prints a READY / NOT READY verdict and writes overlays to --out. Use --list-cameras to
-find the camera index first. Frames grabbed from the line are real line data:
-inspection and calibration only.
+Prints READY, READY (camera shift NOT checked), or NOT READY, and writes overlays to
+--out. Run --list-cameras first: it saves a snapshot per camera index, so you can see which
+one is the line camera (a laptop's own webcam is usually 0). Frames grabbed from the line
+are real line data: inspection and calibration only.
 """
 
 import sys
@@ -46,7 +47,10 @@ def dataset_reference(config, root):
     rows = index[index["video_id"] == REFERENCE_VIDEO].reset_index(drop=True)
     picks = np.linspace(0, len(rows) - 1, REFERENCE_STILLS).round().astype(int)
     images = [cv2.imread(str(dataset.image_path("vial_fill", rows.loc[i, "filename"], root))) for i in picks]
-    return static_scene([im for im in images if im is not None], config)
+    images = [im for im in images if im is not None]
+    if not images:
+        raise ValueError(f"no readable video {REFERENCE_VIDEO} stills under the dataset root")
+    return static_scene(images, config)
 
 
 def check_frame(image, config, reference) -> tuple[dict, list[str]]:
@@ -109,11 +113,16 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.list_cameras:
+        args.out.mkdir(parents=True, exist_ok=True)
         cameras = list_cameras()
         for camera in cameras:
+            path = args.out / f"camera_{camera['index']}.png"
+            cv2.imwrite(str(path), camera["frame"])
             print(f"camera {camera['index']}: {camera['width']}x{camera['height']}, "
-                  f"reports {camera['reported_fps']:.1f} fps")
-        if not cameras:
+                  f"reports {camera['reported_fps']:.1f} fps, snapshot {path.as_posix()}")
+        if cameras:
+            print("Open the snapshots and use the index that shows the vial_fill station.")
+        else:
             print("No cameras returned a frame.")
         return
 
@@ -142,11 +151,15 @@ def main() -> None:
     if not frames:
         parser.error("Give frame images or --source.")
 
-    reference = None
+    reference, no_shift_reason = None, None
     try:
         reference = dataset_reference(config, args.dataset_root)
-    except (RuntimeError, FileNotFoundError):
-        print("note: DATASET_ROOT not set; skipping the camera-shift check.")
+    except RuntimeError:
+        no_shift_reason = "DATASET_ROOT is not set"
+    except (OSError, ValueError, KeyError) as error:
+        no_shift_reason = f"dataset reference unavailable ({error})"
+    if no_shift_reason:
+        print(f"note: {no_shift_reason}; the camera-shift check is skipped.")
 
     results, tiles = [], []
     for name, image in frames:
@@ -173,8 +186,13 @@ def main() -> None:
         shift_text = "not checked"
     else:
         shift_text = "ok" if shift_ok else "FAIL"
-    print(f"\n{'READY' if ready else 'NOT READY'}: size {'ok' if size_ok else 'FAIL'}, "
-          f"camera shift {shift_text}, "
+    if not ready:
+        verdict = "NOT READY"
+    elif reference is None:
+        verdict = f"READY (camera shift NOT checked: {no_shift_reason}; compare the overlay by eye)"
+    else:
+        verdict = "READY"
+    print(f"\n{verdict}: size {'ok' if size_ok else 'FAIL'}, camera shift {shift_text}, "
           f"parked vial located {'yes' if vial_seen else 'no - grab frames while a vial is parked'}")
     sys.exit(0 if ready else 1)
 

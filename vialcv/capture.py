@@ -25,18 +25,22 @@ def open_source(source: str, width: int = 640, height: int = 480) -> cv2.VideoCa
     return capture
 
 
-def list_cameras(max_index: int = 6) -> list[dict]:
-    """Probe camera indexes 0..max_index-1 and report the ones that return a frame."""
+def list_cameras(max_index: int = 6, warmup: int = 10) -> list[dict]:
+    """Probe camera indexes 0..max_index-1; return the ones that give a frame, with that frame.
+
+    A laptop's built-in webcam is usually index 0, so look at the frames to find the line camera.
+    """
     found = []
     for index in range(max_index):
         try:
             capture = open_source(str(index))
         except OSError:
             continue
-        ok, frame = capture.read()
-        if ok:
+        frames = grab_frames(capture, 1, warmup=warmup)
+        if frames:
+            frame = frames[0]
             found.append({"index": index, "width": frame.shape[1], "height": frame.shape[0],
-                          "reported_fps": capture.get(cv2.CAP_PROP_FPS)})
+                          "reported_fps": capture.get(cv2.CAP_PROP_FPS), "frame": frame})
         capture.release()
     return found
 

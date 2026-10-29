@@ -155,6 +155,8 @@ Differences from the original proposal:
 - `image_ref` is whatever the caller passes (the CLI gives a dataset-relative path under `$DATASET_ROOT`, else the bare file name), never an absolute path.
 - Fill is reported in pixels only. `at_or_above_view_top` means the surface is hidden by the collar; it is not a measured level.
 
+Records written by `scripts/extract_vials.py` (`records.jsonl`) also carry an `event` block: `video_name`, `event_idx`, the event `quality`, and an `id_note` explaining how `vial_id`/`recipe_id` were set, or why they weren't. They also list the source video first in `provenance.sources`. These fields are proposed, like the rest of this extension.
+
 Quality codes used: `unreadable_image`, `invalid_roi`, `invalid_reference`, `vial_not_found`, `vial_off_station`, `no_liquid_detected` (empty, clear, or very pale: indistinguishable by color), `low_contrast`, `mask_too_small`, `no_zone_with_enough_pixels`. Warnings (measurement still made): `roi_drift`, `assumed_config_vial_crop`, `unknown_crop_no_zones`, `white_balance_needs_full_frame`, `white_reference_occluded` and other white-balance codes, `glare_fraction_high`, `no_empty_reference_for_this_roi`.
 
 ## Proposed `ExpectedColor`

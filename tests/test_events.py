@@ -7,9 +7,12 @@ import pytest
 from vialcv.events import (
     SIGNAL_COLUMNS,
     FillEvent,
+    assign_run_plan,
     detect_events,
+    load_run_plan,
     match_labels,
     pick_frames,
+    station_state,
     stream_column_dev,
 )
 
@@ -142,3 +145,48 @@ def test_stream_column_dev_sees_a_thin_stream():
     assert stream_column_dev(window) > 20
     window[:] = 90  # uniform brightness change, no stream
     assert stream_column_dev(window) < 1
+
+
+def poured(idx, n_pours=1):
+    return FillEvent(idx, idx * 50.0, idx * 50.0 + 40, n_pours, idx * 50.0 + 10 if n_pours else None,
+                     idx * 50.0 + 30 if n_pours else None, None, None, "ok" if n_pours else "no_pour_detected", None)
+
+
+def test_load_run_plan_validates(tmp_path):
+    good = tmp_path / "plan.csv"
+    good.write_text("vial_order,recipe_id\n2,7\n1,5\n")
+    plan = load_run_plan(good)
+    assert plan["vial_order"].tolist() == [1, 2] and plan["recipe_id"].tolist() == [5, 7]
+
+    for text in ("vial_order\n1\n", "vial_order,recipe_id\n1,\n", "vial_order,recipe_id\n1,5\n1,6\n",
+                 "vial_order,recipe_id\n1,5.5\n"):
+        bad = tmp_path / "bad.csv"
+        bad.write_text(text)
+        with pytest.raises(ValueError):
+            load_run_plan(bad)
+
+
+def test_assign_run_plan_by_fill_order_when_counts_match():
+    plan = pd.DataFrame({"vial_order": [1, 2], "recipe_id": [5, 7]})
+    table = assign_run_plan([poured(0), poured(1, n_pours=0), poured(2)], plan).set_index("event_idx")
+    assert table.loc[0, "vial_id"] == 1 and table.loc[0, "recipe_id"] == 5
+    assert table.loc[2, "vial_id"] == 2 and table.loc[2, "recipe_id"] == 7
+    assert pd.isna(table.loc[1, "vial_id"]) and table.loc[1, "match_note"] == "no pour"
+
+
+def test_assign_run_plan_refuses_to_shift_ids_on_a_missed_pour():
+    # Four vials ran, but the pale second one was not detected: assigning by order would
+    # label physical vials 3 and 4 as vials 2 and 3.
+    plan = pd.DataFrame({"vial_order": [1, 2, 3, 4], "recipe_id": [5, 14, 6, 7]})
+    table = assign_run_plan([poured(0), poured(1, n_pours=0), poured(2), poured(3)], plan)
+    assert table["vial_id"].isna().all() and table["recipe_id"].isna().all()
+    filled = table[table["event_idx"] != 1]
+    assert filled["match_note"].str.contains("IDs not assigned").all()
+
+
+def test_station_state():
+    assert station_state(0.95, 10.0, 0.3, 4.0) == "moving"
+    assert station_state(0.1, 0.2, 0.3, 4.0) == "no carrier"
+    assert station_state(0.95, 0.2, 0.3, 80.0) == "pouring"
+    assert station_state(0.95, 0.2, 4.0, 4.0) == "pouring"
+    assert station_state(0.95, np.nan, np.nan, 4.0) == "parked, still"

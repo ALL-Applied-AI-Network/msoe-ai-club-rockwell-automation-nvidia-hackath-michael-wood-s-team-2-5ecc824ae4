@@ -287,3 +287,54 @@ def match_labels(events: list[FillEvent], vial_labels: pd.DataFrame) -> pd.DataF
     table["vial_id"] = table["vial_id"].astype("Int64")
     table["recipe_id"] = table["recipe_id"].astype("Int64")
     return table
+
+
+def load_run_plan(path: str | Path) -> pd.DataFrame:
+    """Read a run plan CSV (vial_order,recipe_id), sorted by vial_order.
+
+    Raises ValueError with a readable message if a column is missing, a value is blank
+    or not a whole number, or vial_order repeats.
+    """
+    plan = pd.read_csv(path)
+    missing = {"vial_order", "recipe_id"} - set(plan.columns)
+    if missing:
+        raise ValueError(f"Run plan {path} needs columns vial_order,recipe_id; missing {sorted(missing)}.")
+    for column in ("vial_order", "recipe_id"):
+        values = pd.to_numeric(plan[column], errors="coerce")
+        bad = plan.index[values.isna() | (values % 1 != 0)].tolist()
+        if bad:
+            raise ValueError(f"Run plan {path}: {column} must be a whole number on every row; "
+                             f"check data rows {[i + 1 for i in bad]}.")
+        plan[column] = values.astype(int)
+    if plan["vial_order"].duplicated().any():
+        raise ValueError(f"Run plan {path}: vial_order values repeat.")
+    return plan.sort_values("vial_order").reset_index(drop=True)
+
+
+def assign_run_plan(events: list[FillEvent], plan: pd.DataFrame) -> pd.DataFrame:
+    """Give events with pours the plan's vial and recipe IDs, in fill order.
+
+    Only when the number of events with pours equals the number of plan rows: a missed
+    pour (for example a pale recipe) or an extra one would shift every later ID onto the
+    wrong vial, so on a mismatch no IDs are assigned and `match_note` says why.
+    """
+    poured = [e.event_idx for e in events if e.n_pours > 0]
+    counts_match = len(poured) == len(plan)
+    mismatch = (f"run plan has {len(plan)} vials but {len(poured)} filled vials were detected; "
+                "IDs not assigned (fix the plan or check the recording, then re-run)")
+    rows = []
+    for event in events:
+        row = {"event_idx": event.event_idx, "vial_id": pd.NA, "recipe_id": pd.NA, "match_note": None}
+        if event.n_pours == 0:
+            row["match_note"] = "no pour"
+        elif not counts_match:
+            row["match_note"] = mismatch
+        else:
+            planned = plan.iloc[poured.index(event.event_idx)]
+            row.update(vial_id=int(planned["vial_order"]), recipe_id=int(planned["recipe_id"]),
+                       match_note="from run plan by fill order")
+        rows.append(row)
+    table = pd.DataFrame(rows)
+    table["vial_id"] = table["vial_id"].astype("Int64")
+    table["recipe_id"] = table["recipe_id"].astype("Int64")
+    return table

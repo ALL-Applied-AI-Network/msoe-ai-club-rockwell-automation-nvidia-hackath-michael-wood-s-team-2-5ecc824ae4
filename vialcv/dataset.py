@@ -18,6 +18,13 @@ CAMERAS = ("vial_fill", "tank_level", "cap_seal")
 # All Dataset 2 videos are 30 fps (dataset README); label frame indices use this rate.
 VIDEO_FPS = 30.0
 
+# The dataset's capture system delivered ~24.7 fps but wrote files at 30 fps: the
+# burned-in clock advances ~1.21-1.22 s per video second in all five videos. Every time
+# threshold in vialcv was set in these "dataset seconds". A recording written at its true
+# capture rate must be converted: dataset seconds = real seconds / DATASET_TIME_SCALE,
+# i.e. analyze it at (true fps * DATASET_TIME_SCALE).
+DATASET_TIME_SCALE = 1.215
+
 
 def dataset_root(root: str | Path | None = None) -> Path:
     """Return the dataset root from `root` or $DATASET_ROOT, checking that it exists."""
@@ -105,6 +112,11 @@ def video_fps(path: str | Path, default: float = VIDEO_FPS) -> float:
     finally:
         capture.release()
     return float(fps) if fps and np.isfinite(fps) and fps > 0 else default
+
+
+def dataset_clock_fps(true_fps: float) -> float:
+    """Frame rate that puts a true-rate recording on the dataset's clock (see DATASET_TIME_SCALE)."""
+    return true_fps * DATASET_TIME_SCALE
 
 
 def frame_to_seconds(frame_index: int, fps: float = VIDEO_FPS) -> float:

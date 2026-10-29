@@ -8,10 +8,13 @@ appearance record per vial from vialcv.detect, on its last settled frame).
 
 Vial and recipe IDs: for dataset video 5, events are matched to the official labels by
 time overlap and IDs are set only when unambiguous. For a recording, --run-plan gives
-the recipe of each vial in fill order (CSV with columns vial_order,recipe_id); IDs are
-assigned by order, so a missed or extra event shifts them, which the record notes.
+the recipe of each vial in fill order (CSV with columns vial_order,recipe_id). IDs are
+assigned only if the number of filled vials detected equals the plan's rows; otherwise
+none are, and each record's id_note says why.
 
-Times use the frame rate stored in each video file. Outputs from real line video are
+Times use the frame rate stored in each file, which must be on the dataset's clock
+(dataset videos and scripts/lab_capture.py recordings are). For a recording written at
+its true capture rate by another tool, pass --true-rate. Outputs from real line video are
 for inspection and evaluation only, not training data.
 """
 
@@ -29,8 +32,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vialcv import dataset  # noqa: E402
 from vialcv.detect import detect_vial_color  # noqa: E402
 from vialcv.events import (  # noqa: E402
+    assign_run_plan,
     compute_signals,
     detect_events,
+    load_run_plan,
     match_labels,
     pick_frames,
     reference_frame,
@@ -47,31 +52,6 @@ def read_frame(video: Path, frame_index: int):
     return None
 
 
-def plan_ids(events, plan: pd.DataFrame) -> pd.DataFrame:
-    """Assign run-plan recipes to events with pours, in fill order."""
-    poured = [e.event_idx for e in events if e.n_pours > 0]
-    plan = plan.sort_values("vial_order").reset_index(drop=True)
-    rows = []
-    for event in events:
-        row = {"event_idx": event.event_idx, "vial_id": pd.NA, "recipe_id": pd.NA, "match_note": None}
-        if event.n_pours > 0:
-            position = poured.index(event.event_idx)
-            if position < len(plan):
-                row.update(vial_id=int(plan.loc[position, "vial_order"]),
-                           recipe_id=int(plan.loc[position, "recipe_id"]),
-                           match_note="from run plan by fill order")
-            else:
-                row["match_note"] = "more filled vials than run-plan rows"
-        rows.append(row)
-    if len(poured) != len(plan):
-        print(f"  warning: {len(poured)} filled vials detected but run plan has {len(plan)} rows; "
-              "check the IDs by eye")
-    table = pd.DataFrame(rows)
-    table["vial_id"] = table["vial_id"].astype("Int64")
-    table["recipe_id"] = table["recipe_id"].astype("Int64")
-    return table
-
-
 def optional_int(value):
     return None if pd.isna(value) else int(value)
 
@@ -79,6 +59,8 @@ def optional_int(value):
 def extract_video(video: Path, name: str, video_ref: str, args, config,
                   video_id: int | None = None, plan: pd.DataFrame | None = None) -> pd.DataFrame:
     fps = dataset.video_fps(video)
+    if args.true_rate:
+        fps = dataset.dataset_clock_fps(fps)
     out_dir = args.out / name
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -99,7 +81,11 @@ def extract_video(video: Path, name: str, video_ref: str, args, config,
         labels = dataset.load_vial_recipes(args.dataset_root)
         event_table = event_table.merge(match_labels(events, labels), on="event_idx")
     elif plan is not None:
-        event_table = event_table.merge(plan_ids(events, plan), on="event_idx")
+        event_table = event_table.merge(assign_run_plan(events, plan), on="event_idx")
+        poured = int((event_table["n_pours"] > 0).sum())
+        if poured != len(plan):
+            print(f"  WARNING: {poured} filled vials detected but the run plan has {len(plan)}; "
+                  "no vial/recipe IDs assigned. Compare with the vials actually run.")
     event_table.insert(0, "video_id", video_id)
     event_table.insert(1, "video_name", name)
     event_table.to_csv(out_dir / "events.csv", index=False)
@@ -192,6 +178,9 @@ def main() -> None:
                         help="Dataset video IDs (ignored when --video-file is given)")
     parser.add_argument("--video-file", type=Path, nargs="+", help="Process these recordings instead")
     parser.add_argument("--run-plan", type=Path, help="CSV vial_order,recipe_id for --video-file runs")
+    parser.add_argument("--true-rate", action="store_true",
+                        help="The file's frame rate is its true capture rate (not the dataset clock); "
+                             "convert it. Not needed for dataset videos or lab_capture.py recordings.")
     parser.add_argument("--data-origin", choices=("real_line", "digital_twin", "unknown"), default="real_line",
                         help="Origin of the input video (default real_line)")
     parser.add_argument("--white-balance", choices=("none", "white_patch", "gray_world"), default="none",
@@ -206,9 +195,12 @@ def main() -> None:
     config = load_camera_config("vial_fill")
 
     if args.video_file:
-        plan = pd.read_csv(args.run_plan) if args.run_plan else None
-        if plan is not None and not {"vial_order", "recipe_id"} <= set(plan.columns):
-            parser.error("--run-plan needs columns vial_order,recipe_id")
+        plan = None
+        if args.run_plan:
+            try:
+                plan = load_run_plan(args.run_plan)
+            except (OSError, ValueError) as error:
+                parser.error(str(error))
         for video in args.video_file:
             if not video.is_file():
                 parser.error(f"Video not found: {video}")
