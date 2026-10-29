@@ -97,6 +97,16 @@ def load_frame_labels(root: str | Path | None = None) -> pd.DataFrame:
     return labels
 
 
+def video_fps(path: str | Path, default: float = VIDEO_FPS) -> float:
+    """Return the frame rate stored in a video file, or `default` if it has none."""
+    capture = cv2.VideoCapture(str(path))
+    try:
+        fps = capture.get(cv2.CAP_PROP_FPS) if capture.isOpened() else 0.0
+    finally:
+        capture.release()
+    return float(fps) if fps and np.isfinite(fps) and fps > 0 else default
+
+
 def frame_to_seconds(frame_index: int, fps: float = VIDEO_FPS) -> float:
     """Return video time in seconds for a frame index (t = 0 at frame 0)."""
     return frame_index / fps

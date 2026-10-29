@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from vialcv.dataset import VIDEO_FPS, iter_frames
+from vialcv.dataset import VIDEO_FPS, iter_frames, video_fps
 from vialcv.roi import CameraConfig, crop
 
 # A carrier is parked when most of the collar face is dark and the station is still.
@@ -79,9 +79,15 @@ def stream_column_dev(window_bgr: np.ndarray) -> float:
     return float(np.sort(deviation)[-3:].mean())
 
 
-def compute_signals(video: str | Path, config: CameraConfig, step: int = 2) -> pd.DataFrame:
-    """Return one row of signals per sampled frame of a vial_fill video."""
-    lag = max(int(round(VIAL_CHANGE_LAG_S * VIDEO_FPS / step)), 1)
+def compute_signals(video: str | Path, config: CameraConfig, step: int = 2,
+                    fps: float | None = None) -> pd.DataFrame:
+    """Return one row of signals per sampled frame of a vial_fill video.
+
+    `fps` defaults to the rate stored in the file (30 for the dataset videos); video_s
+    and all time thresholds use it, so recordings at other rates are timed correctly.
+    """
+    fps = fps or video_fps(video)
+    lag = max(int(round(VIAL_CHANGE_LAG_S * fps / step)), 1)
     recent_vials: list[np.ndarray] = []
     previous_station = None
     rows = []
@@ -102,7 +108,7 @@ def compute_signals(video: str | Path, config: CameraConfig, step: int = 2) -> p
         if len(recent_vials) > lag:
             recent_vials.pop(0)
 
-        rows.append((frame_index, frame_index / VIDEO_FPS, collar_dark, motion, change,
+        rows.append((frame_index, frame_index / fps, collar_dark, motion, change,
                      stream_column_dev(crop(frame, config.region("nozzle_stream")))))
 
     return pd.DataFrame(rows, columns=SIGNAL_COLUMNS)
