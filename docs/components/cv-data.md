@@ -79,6 +79,8 @@ python scripts/stability_study.py
 
 `detect_vial_color.py` exits 0 when a color was measured, 1 on a quality failure (the record says why), 2 on usage errors.
 
+Lab runs: `scripts/lab_check.py` (camera view vs config, READY / NOT READY), `scripts/lab_capture.py` (record a camera with a live state preview, then extract), and `extract_vials.py --video-file <recording> --run-plan plan.csv` (any recording; times use the file's frame rate; writes `records.jsonl`, one record per vial). Step-by-step: [cv-lab-runbook.md](cv-lab-runbook.md).
+
 ### Results
 
 | Check | Calibration (videos 1-4) | Evaluation (video 5) |
