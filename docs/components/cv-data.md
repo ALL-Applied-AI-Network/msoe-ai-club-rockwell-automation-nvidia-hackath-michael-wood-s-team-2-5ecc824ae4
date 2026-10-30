@@ -51,9 +51,10 @@ Package `vialcv/` with scripts and tests. `measure_color.py` keeps its CLI and o
 | Color statistics | `vialcv/colorstats.py` | Per-pixel median/trimmed mean/MAD (RGB, Lab), saturation-weighted circular hue, CIEDE2000 |
 | White balance | `vialcv/whitebalance.py` | `white_patch` (backdrop to neutral), `gray_world`, `none` |
 | Detection | `vialcv/detect.py`, `scripts/detect_vial_color.py` | One image in, measured-appearance record out |
+| Live readout | `vialcv/live.py`, used by `scripts/lab_capture.py` | Follows fill cycles frame by frame, measures each vial as it settles, flags a recipe's first vial that differs from the second |
 | Calibration/evaluation | `scripts/roi_overlay.py`, `evaluate_locate.py`, `calibrate_empty_profile.py`, `segment_vials.py`, `stability_study.py` | Reproduce every number below |
 
-Tests: `pytest` (107 tests, synthetic images; one real-data smoke test runs only when `DATASET_ROOT` is set). Dev install: `pip install -r requirements-dev.txt`. `requirements.txt` pins `numpy==2.5.4`, which needs Python 3.12+.
+Tests: `pytest` (119 tests, synthetic images and signals; one real-data smoke test runs only when `DATASET_ROOT` is set). Dev install: `pip install -r requirements-dev.txt`. `requirements.txt` pins `numpy==2.5.4`, which needs Python 3.12+.
 
 Calibration and evaluation split: all thresholds and config values were set on **videos 1-4**; video 5 was run once after they were fixed. `configs/cameras/vial_fill_empty_profile.json` holds per-row numbers derived from 33 empty-vial frames of videos 1-4 (`data_origin: real_line`, no images).
 

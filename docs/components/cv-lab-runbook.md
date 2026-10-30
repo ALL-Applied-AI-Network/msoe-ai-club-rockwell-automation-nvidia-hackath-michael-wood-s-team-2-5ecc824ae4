@@ -31,11 +31,20 @@ For the CV team during a scheduled lab test on the CSI vial line. Goal: leave wi
 | --- | --- | --- |
 | 0-10 | Find the camera and check the view | `python scripts\lab_check.py --list-cameras` saves `outputs\lab_check\camera_<N>.png` for each camera. Open them and pick the index **N** that shows the vial_fill station (a laptop's own webcam is usually 0). Then `python scripts\lab_check.py --source N` with a vial parked. Want **READY**. "READY (camera shift NOT checked)" means `DATASET_ROOT` is missing or wrong: fix it, or compare the overlay by eye. |
 | 10-15 | Test recording (20-30 s) | `python scripts\lab_capture.py --source N --name test --duration 25`. Check that the preview shows the station and that no frame-rate warning appears at the end. Optional backup: `python scripts\lab_check.py --source N --frames 5` while an empty vial is parked (extraction already saves one empty reference per vial). |
-| 15-50 | Record the run(s); one recording per batch | `python scripts\lab_capture.py --source N --name run1 --process --run-plan plan.csv`. Watch the preview: states should cycle no carrier → moving → parked → pouring → parked → moving. Count the vials that actually ran. |
+| 15-50 | Record the run(s); one recording per batch | `python scripts\lab_capture.py --source N --name run1 --process --run-plan plan.csv`. Watch the preview: states should cycle no carrier → moving → parked, waiting → pouring → settling → settled, measured → moving. The right-hand panel adds one row per filled vial (color swatch, zone, fill); check its "vials filled" count against the vials that actually ran. |
 | 50-55 | Check results | The extract summary's "N with pours" must equal the number of vials that ran; if it doesn't, no IDs are assigned (see below). `outputs\vials\run1\records.jsonl` has one line per detected filled vial, and the summary shows "N/N vials measured". |
 | 55-60 | Back up | Copy `outputs\lab\` and `outputs\vials\run*` to the drive. Note anything unusual (lighting, people in view, recipe changes). |
 
 Write down the wall-clock start and end of each recording, how many vials ran, and any recipe changes the operator makes.
+
+### Live per-vial readout
+
+The preview panel measures each vial while it is settled (re-measured every second until the carrier leaves) and logs it to `outputs\lab\<name>_live.jsonl`.
+- With `--run-plan`, each vial shows its recipe and its position within the recipe, taken from the plan by **live fill order**. A missed pour (pale liquid) shifts every later ID, so treat the IDs as provisional and check the "vials filled" count.
+- When the second vial of a recipe settles, the panel compares it with the first. If they differ by more than `--flag-de00` (default 5), the first vial gets a red **FLAG** box. The flag appears when vial 2 settles, not when vial 1 does.
+- What a flag means: the first vial of a recipe looks different from the next one. It is a measured-appearance check, not a carryover model or an expected color. The default threshold was chosen after looking at video 5, so the lab recording is its first independent test.
+- The authoritative per-vial records still come from `extract_vials.py` (`--process`).
+- Replaying video 5 (`--source <vial_fill_video_5.mp4> --run-plan <plan from the labels>`) gave 30/30 vials, live colors within a median 0.06 dE00 of `extract_vials`, and flags on the first vial of 8 of 10 recipes. Recipe 9's first vial is ~3 dE00 off, under the threshold; recipe 14 is too pale to measure.
 
 Recordings are written on the **dataset clock**: frame rate × 1.215, so 30 fps for a camera delivering ~24.7. Every time threshold was calibrated on Dataset 2 videos, which were captured at ~24.7 fps but saved at 30. The MP4 therefore plays slightly fast. Real times are in `<name>_frames.csv`, and the rates in `<name>_capture.json`.
 

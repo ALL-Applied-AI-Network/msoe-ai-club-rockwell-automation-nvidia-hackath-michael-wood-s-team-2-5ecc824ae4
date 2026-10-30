@@ -3,9 +3,14 @@
 Measures the frame rate the camera actually delivers and writes the MP4 on the dataset's
 clock: at delivered fps * DATASET_TIME_SCALE (30 fps for a camera delivering ~24.7, like
 the dataset's capture system), so extract_vials' calibrated time thresholds apply
-unchanged. Real wall-clock times go to a per-frame CSV, and the rates to a JSON sidecar. The preview shows the configured vial region
-and a coarse live state (no carrier / moving / pouring / parked, still) computed with
-the same signals and thresholds as scripts/extract_vials.py.
+unchanged. Real wall-clock times go to a per-frame CSV, and the rates to a JSON sidecar.
+
+The preview shows the configured vial region, the live station state, and a per-vial
+readout (vialcv.live): each vial is measured as it settles (color swatch, zone, fill
+state). With --run-plan, recipes come from the plan by live fill order, and when the
+second vial of a recipe settles, the first is flagged if their colors differ by more
+than --flag-de00. Live results go to <name>_live.jsonl. They are provisional: the
+authoritative per-vial records come from extract_vials.py (--process) on the recording.
 
 Stop with q in the preview window, Ctrl+C, or --duration. With --process, the recording
 is passed to extract_vials.py afterwards (with --run-plan if given). The recording is
@@ -33,13 +38,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vialcv.capture import measure_fps, open_source  # noqa: E402
 from vialcv.dataset import DATASET_TIME_SCALE, dataset_clock_fps  # noqa: E402
-from vialcv.events import SignalTracker, station_state  # noqa: E402
+from vialcv.detect import detect_vial_color  # noqa: E402
+from vialcv.events import SignalTracker, load_run_plan  # noqa: E402
+from vialcv.live import DEFAULT_FLAG_DE00, LiveVialReader  # noqa: E402
 from vialcv.roi import load_camera_config  # noqa: E402
 
 STATE_COLORS = {"no carrier": (160, 160, 160), "moving": (0, 165, 255), "pouring": (255, 120, 0),
-                "parked, still": (0, 200, 0)}
+                "parked, waiting": (0, 200, 200), "settling": (255, 200, 0),
+                "settled, measured": (0, 200, 0), "settled, no color": (0, 0, 220)}
 # The live state is computed on every Nth frame, matching extract_vials' default step.
 STATE_STEP = 2
+PANEL_W, ROW_H, PANEL_ROWS = 330, 54, 8
+FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 def draw_preview(frame: np.ndarray, config, state: str, elapsed_s: float, fps: float) -> np.ndarray:
@@ -49,8 +59,48 @@ def draw_preview(frame: np.ndarray, config, state: str, elapsed_s: float, fps: f
     cv2.rectangle(preview, (x, y), (x + w - 1, y + h - 1), color, 2)
     cv2.rectangle(preview, (0, 0), (640, 28), (0, 0, 0), -1)
     cv2.putText(preview, f"REC {elapsed_s:6.1f}s  {fps:4.1f} fps  state: {state}", (6, 19),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+                FONT, 0.55, color, 2)
     return preview
+
+
+def draw_panel(vials, height: int, has_plan: bool) -> np.ndarray:
+    """Per-vial readout, newest at the bottom: swatch, recipe, zone, fill, comparison, flag."""
+    panel = np.full((height, PANEL_W, 3), 30, dtype=np.uint8)
+    n_flags = sum(v.flag is not None for v in vials)
+    cv2.putText(panel, f"vials filled: {len(vials)}   flagged: {n_flags}", (8, 20), FONT, 0.5, (255, 255, 255), 1)
+    if has_plan:
+        cv2.putText(panel, "recipes by live fill order (provisional)", (8, 38), FONT, 0.4, (180, 180, 180), 1)
+    for row, vial in enumerate(vials[-PANEL_ROWS:]):
+        top = 46 + row * ROW_H
+        if vial.flag:
+            cv2.rectangle(panel, (2, top - 2), (PANEL_W - 3, top + ROW_H - 6), (0, 0, 255), 2)
+        swatch = (60, 60, 60)
+        if vial.ok:
+            rgb = vial.record["color"]["primary"]["rgb_0_255"]["median"]
+            swatch = tuple(int(round(c)) for c in rgb[::-1])
+        cv2.rectangle(panel, (8, top + 2), (48, top + 42), swatch, -1)
+        cv2.rectangle(panel, (8, top + 2), (48, top + 42), (200, 200, 200), 1)
+
+        title = f"#{vial.number}"
+        if vial.recipe_id is not None:
+            title += f"  recipe {vial.recipe_id} (vial {vial.position_in_recipe})"
+        cv2.putText(panel, f"{title}  {vial.status}", (56, top + 14), FONT, 0.45, (255, 255, 255), 1)
+        if vial.ok:
+            fill = vial.record["fill"]["state"].replace("at_or_above_view_top", "above view").replace("_", " ")
+            detail = f"{vial.record['color']['primary_zone']}, fill {fill}"
+        elif vial.record is not None:
+            detail = f"no color: {vial.record['quality']['code']}"
+        else:
+            detail = "pouring..."
+        cv2.putText(panel, detail, (56, top + 29), FONT, 0.4, (200, 200, 200), 1)
+        if vial.flag:
+            # The flag comes from the next vial's comparison with this one.
+            de00 = vials[vial.number].compare["de00"]
+            cv2.putText(panel, f"FLAG: dE00 {de00:.1f} from next vial", (56, top + 44), FONT, 0.42, (0, 0, 255), 1)
+        elif vial.compare and vial.compare["de00"] is not None:
+            cv2.putText(panel, f"dE00 {vial.compare['de00']:.1f} vs #{vial.compare['to_live_vial']} "
+                        f"({vial.compare['zone']})", (56, top + 44), FONT, 0.4, (200, 200, 200), 1)
+    return panel
 
 
 def main() -> None:
@@ -63,16 +113,31 @@ def main() -> None:
                         help="The camera's true delivered frame rate (default: measured for 3 s)")
     parser.add_argument("--no-preview", action="store_true", help="Record without a preview window")
     parser.add_argument("--process", action="store_true", help="Run extract_vials.py on the recording afterwards")
-    parser.add_argument("--run-plan", type=Path, help="Passed to extract_vials.py with --process")
+    parser.add_argument("--run-plan", type=Path,
+                        help="CSV vial_order,recipe_id: live recipe readout, and passed to extract_vials.py")
     parser.add_argument("--vials-out", type=Path, default=Path("outputs/vials"),
                         help="Output folder for extract_vials.py with --process")
+    parser.add_argument("--flag-de00", type=float, default=DEFAULT_FLAG_DE00,
+                        help="Flag a recipe's first vial when it differs from the second by more than this")
+    parser.add_argument("--white-balance", choices=("none", "white_patch", "gray_world"), default="none",
+                        help="Correction used for the live measurements")
+    parser.add_argument("--data-origin", choices=("real_line", "digital_twin", "unknown"),
+                        help="Origin recorded in live records (default: real_line for a camera, unknown for a file)")
     args = parser.parse_args()
+
+    plan = None
+    if args.run_plan:
+        try:
+            plan = load_run_plan(args.run_plan)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
 
     config = load_camera_config("vial_fill")
     name = args.name or datetime.now().strftime("lab_%Y%m%d_%H%M%S")
     args.out.mkdir(parents=True, exist_ok=True)
     video_path = args.out / f"{name}.mp4"
     times_path = args.out / f"{name}_frames.csv"
+    live_path = args.out / f"{name}_live.jsonl"
     if video_path.exists():
         parser.error(f"{video_path} exists; choose another --name.")
 
@@ -108,8 +173,25 @@ def main() -> None:
     writer = cv2.VideoWriter(str(video_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
     if not writer.isOpened():
         parser.error(f"Could not open {video_path} for writing.")
-    # The tracker runs on the file's (dataset) clock, like extract_vials.
+    # The tracker and live reader run on the file's (dataset) clock, like extract_vials.
     tracker = SignalTracker(config, fps / STATE_STEP)
+    origin = args.data_origin or ("unknown" if is_file else "real_line")
+
+    def measure(vial_frame, reference, t):
+        return detect_vial_color(vial_frame, reference_bgr=reference, white_balance_method=args.white_balance,
+                                 image_ref=video_path.name, source_data_origin=origin,
+                                 metadata={"video_s": round(t, 3)}, config=config)
+
+    reader = LiveVialReader(measure, fps / STATE_STEP, plan, args.flag_de00)
+    live_path.write_text("", encoding="utf-8")
+
+    def log_finished():
+        # A first vial's flag is set when the next vial settles, after the first was
+        # finished, so the whole log is rewritten each time a vial finishes.
+        if reader.pop_finished():
+            finished = [v for v in reader.vials if v.status in ("final", "not_measured")]
+            live_path.write_text("".join(json.dumps(v.summary(), allow_nan=False) + "\n" for v in finished),
+                                 encoding="utf-8")
 
     clock = (f"{fps:.2f} fps on the dataset clock (delivered {true_fps:.2f} x {DATASET_TIME_SCALE})"
              if true_fps else f"{fps:.2f} fps (source file's own clock)")
@@ -126,10 +208,12 @@ def main() -> None:
                 elapsed = frame_index / fps if is_file else time.perf_counter() - start
                 log.writerow([frame_index, datetime.now().isoformat(timespec="milliseconds"), f"{elapsed:.3f}"])
                 if frame_index % STATE_STEP == 0 and (width, height) == config.image_size_wh:
-                    state = station_state(*tracker.update(frame))
+                    state = reader.update(frame_index / fps, frame, tracker.update(frame))
+                    log_finished()
                 if not args.no_preview:
-                    cv2.imshow("lab capture (q to stop)",
-                               draw_preview(frame, config, state, elapsed, true_fps or fps))
+                    preview = draw_preview(frame, config, state, elapsed, true_fps or fps)
+                    panel = draw_panel(reader.vials, preview.shape[0], plan is not None)
+                    cv2.imshow("lab capture (q to stop)", np.hstack([preview, panel]))
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         break
                 if args.duration and elapsed >= args.duration:
@@ -142,6 +226,8 @@ def main() -> None:
         except KeyboardInterrupt:
             print("Stopped.")
         finally:
+            reader.close(frame_index / fps)
+            log_finished()
             writer.release()
             capture.release()
             cv2.destroyAllWindows()
@@ -149,6 +235,15 @@ def main() -> None:
     elapsed = time.perf_counter() - start
     print(f"Saved {frame_index + 1} frames ({elapsed:.0f} s wall clock) to {video_path.as_posix()}; "
           f"frame times in {times_path.as_posix()}.")
+    measured = sum(v.ok for v in reader.vials)
+    print(f"Live readout: {len(reader.vials)} filled vials, {measured} with a color -> {live_path.as_posix()}")
+    for vial in reader.vials:
+        if vial.flag:
+            print(f"  FLAG live vial #{vial.number}: {vial.flag}")
+    if plan is not None and len(reader.vials) != len(plan):
+        print(f"WARNING: the live count ({len(reader.vials)}) differs from the run plan ({len(plan)}). "
+              "If a vial was missed or an extra pour counted, the live recipe IDs after it are wrong; "
+              "check extract_vials, which assigns no IDs on a mismatch.")
     delivered = (frame_index + 1) / elapsed if not is_file and elapsed > 0 else None
     sidecar = args.out / f"{name}_capture.json"
     sidecar.write_text(json.dumps({
