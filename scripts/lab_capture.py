@@ -11,6 +11,8 @@ state). With --run-plan, recipes come from the plan by live fill order, and when
 second vial of a recipe settles, the first is flagged if their colors differ by more
 than --flag-de00. Live results go to <name>_live.jsonl. They are provisional: the
 authoritative per-vial records come from extract_vials.py (--process) on the recording.
+--save-preview also writes the preview with the panel to <name>_preview.mp4 at the
+camera's true rate (real-speed playback, for demo footage); it is not used for measurement.
 
 Stop with q in the preview window, Ctrl+C, or --duration. With --process, the recording
 is passed to extract_vials.py afterwards (with --run-plan if given). The recording is
@@ -112,6 +114,8 @@ def main() -> None:
     parser.add_argument("--fps", type=float,
                         help="The camera's true delivered frame rate (default: measured for 3 s)")
     parser.add_argument("--no-preview", action="store_true", help="Record without a preview window")
+    parser.add_argument("--save-preview", action="store_true",
+                        help="Also save the preview with the readout panel to <name>_preview.mp4, at real speed")
     parser.add_argument("--process", action="store_true", help="Run extract_vials.py on the recording afterwards")
     parser.add_argument("--run-plan", type=Path,
                         help="CSV vial_order,recipe_id: live recipe readout, and passed to extract_vials.py")
@@ -138,6 +142,7 @@ def main() -> None:
     video_path = args.out / f"{name}.mp4"
     times_path = args.out / f"{name}_frames.csv"
     live_path = args.out / f"{name}_live.jsonl"
+    preview_path = args.out / f"{name}_preview.mp4"
     if video_path.exists():
         parser.error(f"{video_path} exists; choose another --name.")
 
@@ -173,6 +178,14 @@ def main() -> None:
     writer = cv2.VideoWriter(str(video_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
     if not writer.isOpened():
         parser.error(f"Could not open {video_path} for writing.")
+    preview_writer = None
+    if args.save_preview:
+        # The raw recording is on the dataset clock for measurement; the preview is for
+        # people, so it is written at the true rate and plays back at real speed.
+        preview_writer = cv2.VideoWriter(str(preview_path), cv2.VideoWriter_fourcc(*"mp4v"), true_fps or fps,
+                                         (width + PANEL_W, height))
+        if not preview_writer.isOpened():
+            parser.error(f"Could not open {preview_path} for writing.")
     # The tracker and live reader run on the file's (dataset) clock, like extract_vials.
     tracker = SignalTracker(config, fps / STATE_STEP)
     origin = args.data_origin or ("unknown" if is_file else "real_line")
@@ -210,10 +223,13 @@ def main() -> None:
                 if frame_index % STATE_STEP == 0 and (width, height) == config.image_size_wh:
                     state = reader.update(frame_index / fps, frame, tracker.update(frame))
                     log_finished()
-                if not args.no_preview:
+                if not args.no_preview or preview_writer is not None:
                     preview = draw_preview(frame, config, state, elapsed, true_fps or fps)
-                    panel = draw_panel(reader.vials, preview.shape[0], plan is not None)
-                    cv2.imshow("lab capture (q to stop)", np.hstack([preview, panel]))
+                    shown = np.hstack([preview, draw_panel(reader.vials, preview.shape[0], plan is not None)])
+                    if preview_writer is not None:
+                        preview_writer.write(shown)
+                if not args.no_preview:
+                    cv2.imshow("lab capture (q to stop)", shown)
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         break
                 if args.duration and elapsed >= args.duration:
@@ -229,6 +245,8 @@ def main() -> None:
             reader.close(frame_index / fps)
             log_finished()
             writer.release()
+            if preview_writer is not None:
+                preview_writer.release()
             capture.release()
             cv2.destroyAllWindows()
 
@@ -237,6 +255,8 @@ def main() -> None:
           f"frame times in {times_path.as_posix()}.")
     measured = sum(v.ok for v in reader.vials)
     print(f"Live readout: {len(reader.vials)} filled vials, {measured} with a color -> {live_path.as_posix()}")
+    if preview_writer is not None:
+        print(f"Preview with readout (real speed): {preview_path.as_posix()}")
     for vial in reader.vials:
         if vial.flag:
             print(f"  FLAG live vial #{vial.number}: {vial.flag}")

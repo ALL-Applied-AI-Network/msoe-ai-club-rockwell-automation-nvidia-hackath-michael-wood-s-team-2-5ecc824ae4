@@ -31,11 +31,13 @@ For the CV team during a scheduled lab test on the CSI vial line. Goal: leave wi
 | --- | --- | --- |
 | 0-10 | Find the camera and check the view | `python scripts\lab_check.py --list-cameras` saves `outputs\lab_check\camera_<N>.png` for each camera. Open them and pick the index **N** that shows the vial_fill station (a laptop's own webcam is usually 0). Then `python scripts\lab_check.py --source N` with a vial parked. Want **READY**. "READY (camera shift NOT checked)" means `DATASET_ROOT` is missing or wrong: fix it, or compare the overlay by eye. |
 | 10-15 | Test recording (20-30 s) | `python scripts\lab_capture.py --source N --name test --duration 25`. Check that the preview shows the station and that no frame-rate warning appears at the end. Optional backup: `python scripts\lab_check.py --source N --frames 5` while an empty vial is parked (extraction already saves one empty reference per vial). |
-| 15-50 | Record the run(s); one recording per batch | `python scripts\lab_capture.py --source N --name run1 --process --run-plan plan.csv`. Watch the preview: states should cycle no carrier → moving → parked, waiting → pouring → settling → settled, measured → moving. The right-hand panel adds one row per filled vial (color swatch, zone, fill); check its "vials filled" count against the vials that actually ran. |
+| 15-50 | Record the run(s); one recording per batch | `python scripts\lab_capture.py --source N --name run1 --process --run-plan plan.csv --save-preview`. `--save-preview` also writes `run1_preview.mp4`: the preview with the readout panel, at real speed, for the demo video. Watch the preview: states should cycle no carrier → moving → parked, waiting → pouring → settling → settled, measured → moving. The right-hand panel adds one row per filled vial (color swatch, zone, fill); check its "vials filled" count against the vials that actually ran. |
 | 50-55 | Check results | The extract summary's "N with pours" must equal the number of vials that ran; if it doesn't, no IDs are assigned (see below). `outputs\vials\run1\records.jsonl` has one line per detected filled vial, and the summary shows "N/N vials measured". |
 | 55-60 | Back up | Copy `outputs\lab\` and `outputs\vials\run*` to the drive. Note anything unusual (lighting, people in view, recipe changes). |
 
 Write down the wall-clock start and end of each recording, how many vials ran, and any recipe changes the operator makes.
+
+For the demo video, film the station with a phone at the same time as the recording, and clap once in view of the line camera at the start so the two can be lined up. Use `run1_preview.mp4` for the screen side; it does not depend on a screen recorder. It plays at real speed, while `run1.mp4` is on the dataset clock (slightly fast) for measurement.
 
 ### Live per-vial readout
 
