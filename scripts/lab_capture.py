@@ -38,7 +38,7 @@ import numpy as np
 # Allow running as `python scripts/lab_capture.py` without installing the repo.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from vialcv.capture import measure_fps, open_source  # noqa: E402
+from vialcv.capture import measure_fps, open_source, safe_source_label  # noqa: E402
 from vialcv.dataset import DATASET_TIME_SCALE, dataset_clock_fps  # noqa: E402
 from vialcv.detect import detect_vial_color  # noqa: E402
 from vialcv.events import SignalTracker, load_run_plan  # noqa: E402
@@ -267,7 +267,8 @@ def main() -> None:
     delivered = (frame_index + 1) / elapsed if not is_file and elapsed > 0 else None
     sidecar = args.out / f"{name}_capture.json"
     sidecar.write_text(json.dumps({
-        "source": args.source, "frames": frame_index + 1, "wall_seconds": round(elapsed, 3),
+        "source": safe_source_label(args.source), "frames": frame_index + 1,
+        "wall_seconds": round(elapsed, 3),
         "true_fps_before_recording": true_fps, "true_fps_during_recording": delivered,
         "written_fps": fps, "dataset_time_scale": DATASET_TIME_SCALE if true_fps else None,
         "data_origin": "real_line" if not is_file else "unknown",

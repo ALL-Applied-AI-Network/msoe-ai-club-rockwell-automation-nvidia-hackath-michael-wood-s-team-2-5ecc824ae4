@@ -6,13 +6,51 @@ USB cameras open through DirectShow, which reliably honors the requested resolut
 
 import sys
 import time
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import cv2
 import numpy as np
 
 
+def validate_source(source: str) -> None:
+    """Reject stream URLs whose credentials or tokens would leak into logs/metadata."""
+    if "://" not in source:
+        return
+    parsed = urlsplit(source)
+    try:
+        parsed.port
+    except ValueError as error:
+        raise OSError("Stream URL has an invalid port.") from error
+    if not parsed.scheme or not parsed.hostname:
+        raise OSError("Stream URL must include a scheme and host.")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise OSError(
+            "Credential-bearing or tokenized stream URLs are not accepted. "
+            "Ask staff for a credential-free local alias or camera index."
+        )
+
+
+def safe_source_label(source: str) -> str:
+    """Return a non-secret label suitable for console output and capture metadata."""
+    if source.isdigit():
+        return source
+    if "://" in source:
+        parsed = urlsplit(source)
+        host = parsed.hostname or "stream"
+        try:
+            port = parsed.port
+        except ValueError:
+            port = None
+        if port:
+            host += f":{port}"
+        return urlunsplit((parsed.scheme, host, "", "", ""))
+    return Path(source).name or "video-file"
+
+
 def open_source(source: str, width: int = 640, height: int = 480) -> cv2.VideoCapture:
     """Open a camera index, URL, or file; raise OSError if it cannot be opened."""
+    validate_source(source)
     if source.isdigit():
         backend = cv2.CAP_DSHOW if sys.platform == "win32" else cv2.CAP_ANY
         capture = cv2.VideoCapture(int(source), backend)
@@ -21,7 +59,7 @@ def open_source(source: str, width: int = 640, height: int = 480) -> cv2.VideoCa
     else:
         capture = cv2.VideoCapture(source)
     if not capture.isOpened():
-        raise OSError(f"Could not open video source {source!r}.")
+        raise OSError(f"Could not open video source {safe_source_label(source)!r}.")
     return capture
 
 

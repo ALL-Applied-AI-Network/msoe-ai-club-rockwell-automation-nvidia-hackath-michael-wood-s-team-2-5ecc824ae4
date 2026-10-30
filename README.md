@@ -14,8 +14,11 @@ This team is building **ProcessDNA** on **Dataset 2: Fluid Mixing Station**. Sha
 - [docs/project-context.md](docs/project-context.md) — official rules, team decisions, data-use constraints
 - [docs/team-plan.md](docs/team-plan.md) — workstreams and open roster questions
 - [docs/interfaces.md](docs/interfaces.md) — proposed (not agreed) data records
+- [docs/components/cv-staff-agent-runbook.md](docs/components/cv-staff-agent-runbook.md) — verified UWM staff/agent setup, capture, validation, and checksummed return workflow
 
 Datasets, the digital twin, model weights, and secrets stay out of Git. Configure local paths privately; see `docs/project-context.md`. Organizer README content below is unchanged.
+
+For the UWM session, use the `release/uwm-lab-2026-10-30` branch or immutable `uwm-lab-2026-10-30-v1` tag. Run `python scripts/staff_lab.py preflight` before connecting to the authorized camera source.
 
 ## Key dates
 

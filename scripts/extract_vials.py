@@ -59,7 +59,8 @@ def optional_int(value):
 
 def extract_video(video: Path, name: str, video_ref: str, args, config,
                   video_id: int | None = None, plan: pd.DataFrame | None = None) -> pd.DataFrame:
-    fps = dataset.video_fps(video)
+    stored_fps = dataset.video_fps(video)
+    fps = stored_fps
     if args.true_rate:
         fps = dataset.dataset_clock_fps(fps)
     out_dir = args.out / name
@@ -169,6 +170,27 @@ def extract_video(video: Path, name: str, video_ref: str, args, config,
 
     with_pour = event_table[event_table["n_pours"] > 0]
     measured = sum(r["quality"]["ok"] for r in records)
+    extraction_metadata = {
+        "schema": "processdna.cv_extraction.v1",
+        "generator": "scripts/extract_vials.py",
+        "source_ref": video_ref,
+        "source_name": video.name,
+        "data_origin": args.data_origin,
+        "clock_mode": "true" if args.true_rate else "dataset",
+        "stored_fps": stored_fps,
+        "analysis_fps": fps,
+        "run_plan": args.run_plan.name if args.run_plan else None,
+        "white_balance": args.white_balance,
+        "step": args.step,
+        "frames_per_event": args.frames_per_event,
+        "detected_pours": int(len(with_pour)),
+        "record_count": len(records),
+        "measured_count": int(measured),
+    }
+    (out_dir / "extraction.json").write_text(
+        json.dumps(extraction_metadata, allow_nan=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(f"{name}: {fps:.2f} fps, {len(event_table)} dwells, {len(with_pour)} with pours "
           f"(quality: {with_pour['quality'].value_counts().to_dict()}), {len(manifest_table)} frames, "
           f"{measured}/{len(records)} vials measured -> {out_dir.as_posix()}")
