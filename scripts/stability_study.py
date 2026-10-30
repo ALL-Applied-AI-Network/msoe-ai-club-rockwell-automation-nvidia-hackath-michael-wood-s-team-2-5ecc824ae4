@@ -21,6 +21,10 @@ D. White-balance check on static surfaces: a metal rail left of the station (not
    frames, so their color spread across frames, raw vs corrected, shows whether white
    balance removes lighting changes. (The puck face was tried first and rejected: liquid
    color reflects off the aluminum, so it differs per vial.)
+E. Baseline comparison (video 5): the cv/color-baseline rectangle mean vs the zone
+   median, on (1) the same-recipe pairs of C (first vial vs later vials, against vial 2
+   vs vial 3), (2) the pre-pour empty-vial frames, where a measurement should report no
+   liquid rather than a color, and (3) the share of the rectangle that is liquid.
 
 Writes CSVs and plots to outputs/stability/ and prints markdown tables.
 """
@@ -43,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vialcv import dataset  # noqa: E402
 from vialcv.colorstats import delta_e_2000, describe_color, rgb_to_hsv_lab  # noqa: E402
+from vialcv.detect import detect_vial_color  # noqa: E402
 from vialcv.measure import convert_mean_rgb  # noqa: E402
 from vialcv.roi import crop, load_camera_config  # noqa: E402
 from vialcv.segment import crop_zones, load_empty_profile, segment_liquid  # noqa: E402
@@ -98,6 +103,7 @@ def measure_frame(row, config, profile) -> dict | None:
         record["zone_median"] = median_lab(vial, segmentation.zone_masks[zone])
         record["zone_median_wb"] = median_lab(vial_wb, segmentation.zone_masks[zone]) if balance.ok else None
     record["glare_fraction"] = segmentation.glare_fraction
+    record["liquid_fraction_of_rect"] = segmentation.mask_pixel_count / (roi[2] * roi[3])
     record["fill_state"] = segmentation.fill_state
     for name, region in STATIC_REGIONS.items():
         record[f"{name}_lab"] = lab_of_mean(crop(frame, region))
@@ -167,7 +173,40 @@ def recipe_positions(frames: pd.DataFrame, root) -> pd.DataFrame:
             for name, key in (("de00_raw", "zone_median"), ("de00_wb", "zone_median_wb")):
                 ok = zone is not None and a[key] is not None and b[key] is not None
                 row[name] = delta_e_2000(a[key], b[key]) if ok else np.nan
+            row["de00_rect"] = delta_e_2000(a["rect_mean"], b["rect_mean"])
             rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def baseline_separation(positions: pd.DataFrame) -> pd.DataFrame:
+    """How far each method puts a recipe's first vial from its later vials, vs 2-3 noise."""
+    shared = positions.dropna(subset=["de00_raw"])
+    rows = []
+    for method, column in (("rect_mean (baseline)", "de00_rect"), ("zone median", "de00_raw")):
+        first = shared[shared["pair"] != "2-3"]
+        later = shared[shared["pair"] == "2-3"].set_index("recipe_id")[column]
+        per_recipe = first.groupby("recipe_id")[column].min()
+        ratio = (per_recipe / later).dropna()
+        rows.append({
+            "method": method,
+            "recipes": len(ratio),
+            "first_vs_later_median": round(float(first[column].median()), 2),
+            "vial2_vs_3_median": round(float(later.median()), 2),
+            "ratio_median": round(float(ratio.median()), 1),
+            "recipes_first_above_2_3": int((ratio > 1).sum()),
+        })
+    return pd.DataFrame(rows)
+
+
+def empty_vial_check(manifest: pd.DataFrame, config) -> pd.DataFrame:
+    """Measure each pre-pour empty-vial frame: the baseline always returns a color."""
+    rows = []
+    for path in manifest["reference_path"].dropna().unique():
+        frame = cv2.imread(path)
+        record = detect_vial_color(frame, config=config)
+        rows.append({"reference_path": path, "detect_ok": record["quality"]["ok"],
+                     "detect_code": record["quality"]["code"],
+                     "rect_mean_lab": lab_of_mean(crop(frame, config.region("vial")))})
     return pd.DataFrame(rows)
 
 
@@ -260,8 +299,24 @@ def main() -> None:
     print("\nD. Static surface color across frames, raw vs white-balanced (dE00 to per-video median):\n")
     print(markdown(static.round(2)))
 
+    # E. Baseline comparison (video 5).
+    if 5 in args.videos:
+        print("\nE. Baseline comparison, video 5 same-recipe pairs (recipes with a shared zone; "
+              "ratio = smaller first-vial dE00 / vial 2-3 dE00, per recipe):\n")
+        print(markdown(baseline_separation(positions)))
+
+        empty = empty_vial_check(pd.read_csv(args.vials_dir / "video5" / "manifest.csv"), config)
+        empty.to_csv(args.out / "empty_vial_check.csv", index=False)
+        codes = empty["detect_code"].value_counts().to_dict()
+        print(f"\nPre-pour empty-vial frames: {len(empty)}. detect_vial_color returned a color for "
+              f"{int(empty['detect_ok'].sum())} (codes {codes}); rect_mean returned a color for all {len(empty)}.")
+
+        fraction = frames.loc[frames["video_id"] == 5, "liquid_fraction_of_rect"]
+        print(f"Liquid share of the vial rectangle (video 5 frames): median {fraction.median():.2f}, "
+              f"min {fraction.min():.2f}, max {fraction.max():.2f}.")
+
     print(f"\nwrote {args.out.as_posix()}/ (frames.csv, event_spreads.csv, backdrop.csv, "
-          "recipe_positions.csv, static_object.csv, event_spreads.png, backdrop_drift.png)")
+          "recipe_positions.csv, static_object.csv, empty_vial_check.csv, event_spreads.png, backdrop_drift.png)")
 
 
 if __name__ == "__main__":

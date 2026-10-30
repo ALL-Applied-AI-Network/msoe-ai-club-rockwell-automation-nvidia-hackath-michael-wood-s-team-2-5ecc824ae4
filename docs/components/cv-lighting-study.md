@@ -13,7 +13,7 @@ python scripts/extract_vials.py            # settled frames + empty references, 
 python scripts/stability_study.py          # tables + plots, outputs/stability/
 ```
 
-`stability_study.py` prints all tables below and writes `frames.csv`, `event_spreads.csv`, `backdrop.csv`, `recipe_positions.csv`, `static_object.csv`, and two plots.
+`stability_study.py` prints all tables below and writes `frames.csv`, `event_spreads.csv`, `backdrop.csv`, `recipe_positions.csv`, `static_object.csv`, `empty_vial_check.csv`, and two plots.
 
 ## Main findings
 
@@ -22,6 +22,7 @@ python scripts/stability_study.py          # tables + plots, outputs/stability/
 3. **Lighting changes between days and sometimes within a run.** The backdrop is about 8 L brighter on 2026-09-23 (videos 3-5) than on 2026-09-22 (videos 1-2). Videos 3 and 4 have repeated dips of 4-6 L lasting tens of seconds (cause not verified; a shadow is possible).
 4. **White-patch correction removes those lighting changes on static surfaces.** Where lighting dipped (video 4), a metal rail that is not part of the white reference went from 2.7 to 0.6 L spread across frames. Where lighting was steady, correction changed nothing meaningful. Whether it recovers the *true* liquid color across days is **not verified**: that needs the same liquid on both days, which this dataset does not have.
 5. **Same-recipe vials: vials 2 and 3 agree; vial 1 differs.** On video 5, vial 2 vs vial 3 of a recipe differ by a median 0.9 dE00 (0.25-2.4 in the backlit zone), while vial 1 differs from vials 2 and 3 by a median ~11-12 (up to 27). This is consistent with the organizer process note that the first vial after a recipe change may be discolored. It is a measured-appearance difference, not a verified carryover model.
+6. **Compared with the `cv/color-baseline` rectangle mean** (section E): both methods rank every recipe's first vial above its vial 2-3 difference, but the zone median shows the first-vial difference about 1.35x larger (median 11.1 vs 8.2 dE00) at the same vial 2-3 noise (0.87 vs 0.88). The clearer difference is on empty vials: the rectangle returns a color for all 29 pre-pour empty frames; `detect_vial_color` returns none and says why. Liquid is a median 74% of the rectangle (34% for the lowest fills), so the rectangle color always includes glass, walls, and background.
 
 ## A. Within-event spread
 
@@ -74,6 +75,24 @@ Per recipe, 2-3 is under 2.5 in the backlit zone (recipes 7-13). Recipes 5 and 6
 | 5 | left rail | 0.62 | 0.61 | 0.29 | 0.35 |
 
 The far backdrop is the same paper as the white reference, so it partly measures the method against itself; the rail is independent. The puck face was tried first and rejected: liquid color reflects off the aluminum and differs per vial. Full table in `static_object.csv` (video 3 has only 10 measurable frames here, none in a dip).
+
+## E. Baseline comparison (video 5)
+
+The `cv/color-baseline` method (mean RGB of the configured vial rectangle, then converted) against the zone median used by `detect_vial_color`. Same frames and same recipe pairs as section C, restricted to the 9 recipes whose vials share a zone (recipes 5-13). Ratio: per recipe, the smaller of the 1-2 and 1-3 dE00 divided by the 2-3 dE00.
+
+| method | recipes | first vs later vials, median dE00 | vial 2 vs 3, median dE00 | ratio, median | recipes with first vial above 2-3 |
+| --- | --- | --- | --- | --- | --- |
+| rect_mean (baseline) | 9 | 8.23 | 0.88 | 7.4 | 9 |
+| zone median | 9 | 11.09 | 0.87 | 10.7 | 9 |
+
+Empty vials: the 29 pre-pour reference frames of video 5 were measured with no reference image (camera empty profile only). `detect_vial_color` reported `no_liquid_detected` for 27 and `low_contrast` for 2, with no color for any. The rectangle mean returned a color for all 29 (for example RGB ~(100, 102, 85)), which looks like a pale yellow-green liquid.
+
+Liquid share of the rectangle, video 5 settled frames: median 0.74, min 0.34, max 0.77.
+
+What this does and does not show:
+- On this run both methods would flag the same first vials; the gain from the zone median is contrast (a larger first-vial difference at the same noise), not a different ranking.
+- The baseline cannot tell an empty or clear vial from a pale liquid, and its color depends on how much of the rectangle the liquid fills.
+- Video 5 is the evaluation video, and no threshold was changed for this comparison. The empty-profile thresholds were calibrated on empty frames of videos 1-4, not these.
 
 ## Recommendations
 
