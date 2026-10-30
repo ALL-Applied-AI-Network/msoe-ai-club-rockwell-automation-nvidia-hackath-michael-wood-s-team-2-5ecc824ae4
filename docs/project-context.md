@@ -111,6 +111,8 @@ Package name: `csi-vial-fill-dataset`. Three synchronized cameras at 640×480: `
 
 Authoritative per-vial table: `vial_fill/labels/video5_vial_recipes.csv` (and `.json`). Frame mapping: `video5_frame_labels.csv`.
 
+**Repo finding** (branch `cv/color-measurement`, not organizer-confirmed): the videos' burned-in clock advances ~1.21-1.22 s per video second in all five videos. The per-vial table's times match video time, but `video5_frame_labels.csv` derives each still's `video_s` from wall-clock time, so per-still `in_fill`/`vial` labels drift from the video by ~18% (~290 s by the end of video 5). Details: [components/cv-data.md](components/cv-data.md).
+
 ### Digital twin (from its README and Dataset 2)
 
 Package inspected: `csi_digital_twin_v1`. OpenUSD for Isaac Sim (tested with Isaac Sim 6.0). Stations: tray inspection (cap-seal camera) and fill (FillCam plus a pre-recorded fill animation). **No physics.** Glass and liquid materials are approximations. Dataset 2 states **tanks are not modeled**. Official cameras: `CapSealCam` and `FillCam` at 640×480. There is **no tank-level camera** in the supplied twin docs.
@@ -121,7 +123,9 @@ Fill animation: time codes 1–686 at 30 fps; twin README describes blue liquid 
 
 `main` currently contains the organizer README only.
 
-Branch `cv/color-baseline` adds `scripts/measure_color.py`, `requirements.txt`, and a `.gitignore`. That script is the **initial CV baseline** (manual or fixed rectangle). It is not workstream completion. No committed automated test suite was found. Details: [components/cv-data.md](components/cv-data.md).
+Branch `cv/color-baseline` adds `scripts/measure_color.py`, `requirements.txt`, and a `.gitignore`. That script is the **initial CV baseline** (manual or fixed rectangle). It is not workstream completion.
+
+Branch `cv/color-measurement` (PR into `cv/color-baseline`, under review) adds the `vialcv/` package: vial location, settled-frame extraction from video, liquid segmentation with fill state, robust per-zone RGB/HSV/Lab, white balance, `scripts/detect_vial_color.py`, a lighting study, and a `pytest` suite (synthetic images). Details: [components/cv-data.md](components/cv-data.md).
 
 No recipe model, twin runner, synthetic-image exporter, or dashboard code is in the repository. Twin file inspection is documented; Isaac Sim has not been run from this repo. A later failed render would complete a feasibility investigation only, not synthetic-data generation. Details: [components/twin-integration.md](components/twin-integration.md).
 
