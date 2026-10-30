@@ -49,6 +49,31 @@ def test_full_frame_with_reference():
     json.dumps(record, allow_nan=False)
 
 
+def test_empty_reference_color_is_read_on_the_liquid_pixels():
+    record = detect_vial_color(station_frame(265), reference_bgr=station_frame())
+    empty = record["color"]["empty_reference"]
+    assert empty["source"] == "empty_reference"
+    assert empty["zones"].keys() == record["color"]["zones"].keys()
+    backlit = empty["zones"]["backlit"]
+    assert backlit["pixel_count"] == record["color"]["zones"]["backlit"]["pixel_count"]
+    assert backlit["rgb_0_255"]["median"] == pytest.approx([150, 150, 150], abs=1)  # bare backdrop
+    assert empty["zones"]["bore"]["rgb_0_255"]["median"] == pytest.approx([170, 170, 170], abs=1)
+    json.dumps(record, allow_nan=False)
+
+
+def test_empty_reference_gets_the_measured_frames_white_balance():
+    record = detect_vial_color(station_frame(265), reference_bgr=station_frame(), white_balance_method="white_patch")
+    empty = record["color"]["empty_reference"]
+    assert empty["white_balance_gains_rgb"] == record["white_balance"]["gains_rgb"]
+    assert empty["zones"]["backlit"]["rgb_0_255"]["median"] == pytest.approx([150 * 160 / 185] * 3, abs=1)
+
+
+def test_no_empty_reference_block_without_a_reference():
+    record = detect_vial_color(station_frame(265))
+    assert record["quality"]["ok"]
+    assert record["color"]["empty_reference"] is None
+
+
 def test_full_column_uses_backlit_zone():
     record = detect_vial_color(station_frame(265), reference_bgr=station_frame())
     assert record["quality"]["ok"]

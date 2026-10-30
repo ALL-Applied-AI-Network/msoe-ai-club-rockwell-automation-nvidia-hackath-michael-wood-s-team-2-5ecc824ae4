@@ -53,7 +53,7 @@ Package `vialcv/` with scripts and tests. `measure_color.py` keeps its CLI and o
 | Detection | `vialcv/detect.py`, `scripts/detect_vial_color.py` | One image in, measured-appearance record out |
 | Calibration/evaluation | `scripts/roi_overlay.py`, `evaluate_locate.py`, `calibrate_empty_profile.py`, `segment_vials.py`, `stability_study.py` | Reproduce every number below |
 
-Tests: `pytest` (85 tests, synthetic images; one real-data smoke test runs only when `DATASET_ROOT` is set). Dev install: `pip install -r requirements-dev.txt`. `requirements.txt` pins `numpy==2.5.4`, which needs Python 3.12+.
+Tests: `pytest` (107 tests, synthetic images; one real-data smoke test runs only when `DATASET_ROOT` is set). Dev install: `pip install -r requirements-dev.txt`. `requirements.txt` pins `numpy==2.5.4`, which needs Python 3.12+.
 
 Calibration and evaluation split: all thresholds and config values were set on **videos 1-4**; video 5 was run once after they were fixed. `configs/cameras/vial_fill_empty_profile.json` holds per-row numbers derived from 33 empty-vial frames of videos 1-4 (`data_origin: real_line`, no images).
 
@@ -81,7 +81,7 @@ python scripts/stability_study.py
 
 Lab runs: `scripts/lab_check.py` (camera view vs config, READY / NOT READY), `scripts/lab_capture.py` (record a camera with a live state preview, then extract), and `extract_vials.py --video-file <recording> --run-plan plan.csv`:
 - It takes any recording on the dataset clock; add `--true-rate` for a file saved at its true capture rate.
-- It writes `records.jsonl`, one record per detected vial.
+- It writes `records.jsonl`, one record per detected vial, and the same records as a JSON list in `records.json`. Each record includes the vial's empty-reference color per zone (`color.empty_reference`) when a pre-pour frame was found.
 - Run-plan IDs are assigned only when the detected vial count matches the plan.
 
 Time thresholds are in dataset video seconds. Dataset 2 was captured at ~24.7 fps but saved at 30, so `lab_capture.py` writes recordings at the delivered fps × 1.215 (`DATASET_TIME_SCALE` in `vialcv/dataset.py`). Step-by-step: [cv-lab-runbook.md](cv-lab-runbook.md).

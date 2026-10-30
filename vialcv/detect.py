@@ -16,7 +16,7 @@ from vialcv.colorstats import describe_color
 from vialcv.locate import locate_vial
 from vialcv.roi import CameraConfig, Roi, crop, load_camera_config, validate_roi
 from vialcv.segment import crop_zones, load_empty_profile, segment_liquid
-from vialcv.whitebalance import NO_CORRECTION, white_balance
+from vialcv.whitebalance import NO_CORRECTION, apply_gains, white_balance
 
 SCHEMA = "processdna.measured_appearance.v0"
 GENERATOR = "vialcv.detect.detect_vial_color"
@@ -69,6 +69,23 @@ def legacy_fields(described: dict | None) -> dict:
                 "lab_of_mean_rgb": None}
     legacy = described["mean_rgb_then_convert"]
     return {"method": "mean_rgb_then_convert", **legacy}
+
+
+def empty_reference_colors(reference_corrected: np.ndarray, segmentation, balance) -> dict:
+    """Color of the empty vial on the same pixels the liquid was measured on, per zone.
+
+    This is the camera's view of the same spot with no liquid (glass plus whatever is
+    behind it). It is a measured white/background reference for a consumer that models
+    light passing through the liquid, not a liquid color.
+    """
+    return {
+        "source": "empty_reference",
+        "pixels": "same liquid-mask pixels as color.zones, read from the empty reference",
+        "white_balance_gains_rgb": list(balance.gains_rgb),
+        "zones": {name: describe_color(reference_corrected, mask, MIN_ZONE_PIXELS)
+                  for name, mask in segmentation.zone_masks.items()},
+        "whole_mask": describe_color(reference_corrected, segmentation.mask),
+    }
 
 
 def detect_vial_color(
@@ -205,7 +222,13 @@ def detect_vial_color(
         "primary": headline,
         "zones": zone_colors,
         "whole_mask": whole,
+        "empty_reference": None,
         "note": "Measured camera appearance. Compare colors only within the same zone.",
     }
+    if reference is not None:
+        # The reference is from seconds earlier under the same lighting, so it gets the
+        # measured frame's gains rather than its own estimate (its patch may be occluded).
+        reference_corrected = apply_gains(reference, balance)
+        record["color"]["empty_reference"] = empty_reference_colors(reference_corrected, segmentation, balance)
     record["quality"].update(ok=True, code=None, detail=None)
     return record

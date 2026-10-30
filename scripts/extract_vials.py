@@ -4,7 +4,8 @@ For each video (dataset video IDs, or any recording via --video-file): compute p
 signals (cached as signals.csv), detect fill events, save a few frames from each event's
 settled window (full frame plus vial crop) and one empty-vial reference frame from before
 the first pour, and write events.csv, manifest.csv, and records.jsonl (one measured-
-appearance record per vial from vialcv.detect, on its last settled frame).
+appearance record per vial from vialcv.detect, on its last settled frame; records.json
+holds the same records as one JSON list).
 
 Vial and recipe IDs: for dataset video 5, events are matched to the official labels by
 time overlap and IDs are set only when unambiguous. For a recording, --run-plan gives
@@ -163,6 +164,8 @@ def extract_video(video: Path, name: str, video_ref: str, args, config,
     with open(out_dir / "records.jsonl", "w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, allow_nan=False) + "\n")
+    # The same records as one JSON list, for consumers that read *.json files.
+    (out_dir / "records.json").write_text(json.dumps(records, allow_nan=False, indent=1) + "\n", encoding="utf-8")
 
     with_pour = event_table[event_table["n_pours"] > 0]
     measured = sum(r["quality"]["ok"] for r in records)

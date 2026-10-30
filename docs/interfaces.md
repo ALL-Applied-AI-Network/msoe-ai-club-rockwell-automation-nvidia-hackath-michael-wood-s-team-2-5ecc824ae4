@@ -134,7 +134,14 @@ Why: the same liquid looks very different against the white backdrop, the dark b
       "mean_rgb_then_convert": {"rgb_0_255": [], "hsv_of_mean_rgb": {}, "lab_of_mean_rgb": {}}
     },
     "zones": {"backlit": {}, "dark_background": {}, "bore": {}},
-    "whole_mask": {}
+    "whole_mask": {},
+    "empty_reference": {
+      "source": "empty_reference",
+      "pixels": "same liquid-mask pixels as color.zones, read from the empty reference",
+      "white_balance_gains_rgb": [1, 1, 1],
+      "zones": {"backlit": {}, "dark_background": {}, "bore": {}},
+      "whole_mask": {}
+    }
   },
   "fill": {"state": "in_view | at_or_above_view_top | unknown", "coordinates": "frame | image",
            "fill_line_y_px": null, "visible_top_y_px": 272, "height_above_puck_top_px": null},
@@ -154,8 +161,9 @@ Differences from the original proposal:
 - `method` / `rgb_0_255` / `hsv_of_mean_rgb` / `lab_of_mean_rgb` are the `mean_rgb_then_convert` values **of the primary zone's liquid pixels**, not of the whole ROI.
 - `image_ref` is whatever the caller passes (the CLI gives a dataset-relative path under `$DATASET_ROOT`, else the bare file name), never an absolute path.
 - Fill is reported in pixels only. `at_or_above_view_top` means the surface is hidden by the collar; it is not a measured level.
+- `color.empty_reference` is `null` unless an empty-vial reference image was given. When present, it is the empty vial's color on the **same pixels** as each zone's liquid measurement, with the measured frame's white-balance gains. It is a measured background/white reference (for example for a transmission or absorbance model), not a liquid color. On video 5 the backlit zone's empty color was median RGB ~(129, 131, 117), not (255, 255, 255).
 
-Records written by `scripts/extract_vials.py` (`records.jsonl`) also carry an `event` block: `video_name`, `event_idx`, the event `quality`, and an `id_note` explaining how `vial_id`/`recipe_id` were set, or why they weren't. They also list the source video first in `provenance.sources`. These fields are proposed, like the rest of this extension.
+Records written by `scripts/extract_vials.py` (`records.jsonl`, and the same list as `records.json`) also carry an `event` block: `video_name`, `event_idx`, the event `quality`, and an `id_note` explaining how `vial_id`/`recipe_id` were set, or why they weren't. They also list the source video first in `provenance.sources`. These fields are proposed, like the rest of this extension.
 
 Quality codes used: `unreadable_image`, `invalid_roi`, `invalid_reference`, `vial_not_found`, `vial_off_station`, `no_liquid_detected` (empty, clear, or very pale: indistinguishable by color), `low_contrast`, `mask_too_small`, `no_zone_with_enough_pixels`. Warnings (measurement still made): `roi_drift`, `assumed_config_vial_crop`, `unknown_crop_no_zones`, `white_balance_needs_full_frame`, `white_reference_occluded` and other white-balance codes, `glare_fraction_high`, `no_empty_reference_for_this_roi`.
 
